@@ -10,7 +10,7 @@ oder Gemini auf. API-Schlüssel werden niemals an den Browser ausgeliefert.
 cp .env.example .env
 # .env bearbeiten: PAPIERBIB_API_TOKEN und genau einen KI-Schlüssel setzen
 docker compose up -d --build
-curl http://localhost:8080/api/health
+curl http://localhost:8888/api/health
 ```
 
 Für das iPhone darf die API nicht als ungeschütztes `http://` aus einer

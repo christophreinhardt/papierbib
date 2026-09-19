@@ -14,7 +14,7 @@ services:
       LOBID_TIMEOUT_SECONDS: ${LOBID_TIMEOUT_SECONDS:-12}
       MAX_IMAGE_BYTES: ${MAX_IMAGE_BYTES:-12000000}
     ports:
-      - "8080:8080"
+      - "8888:8080"
     read_only: true
     tmpfs:
       - /tmp
