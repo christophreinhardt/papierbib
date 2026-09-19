@@ -3,7 +3,16 @@ services:
     build: .
     container_name: papierbib-api
     restart: unless-stopped
-    env_file: .env
+    environment:
+      PAPIERBIB_API_TOKEN: ${PAPIERBIB_API_TOKEN:?set-in-Portainer}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_VISION_MODEL: ${OPENAI_VISION_MODEL:-gpt-4o-mini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_VISION_MODEL: ${GEMINI_VISION_MODEL:-gemini-2.0-flash}
+      CORS_ORIGINS: ${CORS_ORIGINS:?set-in-Portainer}
+      LOBID_TIMEOUT_SECONDS: ${LOBID_TIMEOUT_SECONDS:-12}
+      MAX_IMAGE_BYTES: ${MAX_IMAGE_BYTES:-12000000}
     ports:
       - "8080:8080"
     read_only: true
