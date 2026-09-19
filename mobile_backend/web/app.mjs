@@ -72,6 +72,7 @@ async function scanLive(epoch){
 const editor=new CropEditor($('editor'),$('cropPreview'),(spec,size)=>{
   for(const [id,key] of [['cropX','x'],['cropY','y'],['cropW','width'],['cropH','height']])$(id).value=(spec[key]*100).toFixed(1);
   $('cropSize').textContent='Zuschnitt ca. '+size.width+' × '+size.height+' Pixel · Drehung '+spec.rotation+'°';
+  $('rotation').value=spec.rotation;$('rotationValue').textContent=spec.rotation+'°';
   state.dirty=true;
   state.cropId=null;
 });
@@ -190,6 +191,7 @@ for(const id of ['file','nativeCamera'])action(id,async()=>{
   if(file && mayReplace()){stopCamera();await loadBlob(file);}
 },'change');
 action('rotateLeft',()=>editor.rotate(-90));action('rotateRight',()=>editor.rotate(90));action('reset',()=>editor.reset());
+action('rotation',()=>editor.setRotation(Number($('rotation').value)),'input');
 action('zoom',()=>{$('editor').style.width=(Number($('zoom').value)*100)+'%';},'input');
 for(const id of ['cropX','cropY','cropW','cropH'])action(id,()=>{
   editor.setBox({x:Number($('cropX').value)/100,y:Number($('cropY').value)/100,width:Number($('cropW').value)/100,height:Number($('cropH').value)/100});

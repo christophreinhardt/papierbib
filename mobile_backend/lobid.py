@@ -93,7 +93,7 @@ def lookup(value, timeout=12):
     variants = [value] + ([isbn10(value)] if isbn10(value) else [])
     query = ' OR '.join('isbn:' + number for number in variants)
     url = ENDPOINT + '?' + urlencode({'q': query, 'format': 'json', 'size': 10})
-    request = Request(url, headers={'Accept': 'application/json', 'User-Agent': 'Papierbibliothek-Mobile/0.3.0'})
+    request = Request(url, headers={'Accept': 'application/json', 'User-Agent': 'Papierbibliothek-Mobile/0.3.1'})
     try:
         deadline = time.monotonic() + timeout
         with build_opener(NoRedirect()).open(request, timeout=timeout) as response:

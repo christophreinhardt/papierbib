@@ -164,7 +164,7 @@ def create_app(settings=None):
     @app.post('/api/projects/{project_id}/captures', status_code=201)
     async def capture(project_id: str, request: Request,
                       kind: Literal['isbn', 'spine', 'titlepage', 'shelf'],
-                      rotation: int = 0,
+                      rotation: float = 0,
                       x: float = 0, y: float = 0, width: float = 1, height: float = 1,
                       store_images: bool = False):
         if not store_images:

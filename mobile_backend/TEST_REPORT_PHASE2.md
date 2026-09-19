@@ -1,4 +1,4 @@
-# Testbericht Phase 2 – Version 0.3.0
+# Testbericht Phase 2 – Version 0.3.1
 
 Stand: 19. September 2026. Keine privaten Fotos, echten Zugangsdaten oder
 kostenpflichtigen KI-Aufrufe. Calibre-Code und GitHub-Pages-Prototyp unverändert.
@@ -51,7 +51,7 @@ python -m unittest discover -s mobile_backend/tests -v
 node --test mobile_backend/tests/crop.test.mjs mobile_backend/tests/isbn.test.mjs
 python -m mobile_backend.tests.browser_smoke
 python -m mobile_backend.tests.recognition_smoke
-docker build -t papierbib-mobile:0.3.0 mobile_backend
+docker build -t papierbib-mobile:0.3.1 mobile_backend
 ```
 
 Container-Smoke wie im vorherigen Bericht, mit dem aktualisierten Compose-Image:
@@ -99,7 +99,7 @@ mobile_backend/
 - ARM64-Ausführung schlägt in der aktuellen lokalen Docker-Umgebung bereits
   bei `/bin/sh` fehl. Auch `uname` im unveränderten vorherigen ARM64-Image
   scheitert identisch. Keine Änderungen an globaler Docker-Emulation vorgenommen.
-  Version 0.3.0 deshalb hier nicht als ARM64-getestet ausweisen; nativer Build
+  Version 0.3.1 deshalb hier nicht als ARM64-getestet ausweisen; nativer Build
   auf dem OrbStack-Mac steht noch aus.
 - Kein physisches iPhone, keine echte Kamera und kein Zugriff auf den
   Homeserver des Nutzers. WebKit mit iPhone-Viewport ersetzt keine Geräteabnahme.
@@ -108,7 +108,8 @@ mobile_backend/
 - Barcodebibliothek befindet sich upstream im Maintenance-Modus; fest
   versioniert und lokal bereitgestellt. Unscharfe/kleine Barcodes und schräge
   Schrift können manuelle Eingabe erfordern. Kein OCR-Erfolgsversprechen.
-- Freie Feinrotation weiterhin offen; Editor dreht in 90°-Schritten.
+- Die Korrektur 0.3.1 ergänzt freie Drehung (0,5°-Schritte) und wird im
+  Browserablauf mit 17,5° und anschließendem 90°-Zuschnitt geprüft.
 - KI für Titel/Autor (Phase 3), Regaltrennung (Phase 4), Calibre-Export und
   Migration alter mobiler Exporte (Phase 5) noch nicht implementiert.
 - Calibre-Tests nicht erneut ausgeführt, da dessen Code unverändert bleibt;

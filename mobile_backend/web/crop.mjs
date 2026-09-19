@@ -9,7 +9,12 @@ export function boxFromPoints(a,b) {
   return constrain({x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(a.x-b.x),height:Math.abs(a.y-b.y)});
 }
 export function rotatedSize(width,height,rotation) {
-  return rotation % 180 ? {width:height,height:width} : {width,height};
+  const radians=rotation*Math.PI/180,cos=Math.abs(Math.cos(radians)),sin=Math.abs(Math.sin(radians));
+  return {width:Math.round((width*cos+height*sin)*1e6)/1e6,height:Math.round((width*sin+height*cos)*1e6)/1e6};
+}
+export function normalRotation(rotation){
+  let value=Number(rotation)||0;value=((value+180)%360+360)%360-180;
+  return Math.abs(value+180)<0.0001?180:value;
 }
 export class CropEditor {
   constructor(canvas, preview, onChange) {
@@ -21,7 +26,7 @@ export class CropEditor {
     canvas.addEventListener('pointercancel',()=>{this.drag=null;});
   }
   load(image, spec={rotation:0,...fullBox()}) {
-    this.image=image; this.rotation=spec.rotation; this.box=constrain(spec); this.rebuild();
+    this.image=image; this.rotation=normalRotation(spec.rotation); this.box=constrain(spec); this.rebuild();
   }
   rebuild() {
     const size=rotatedSize(this.image.naturalWidth,this.image.naturalHeight,this.rotation);
@@ -33,7 +38,8 @@ export class CropEditor {
     ctx.drawImage(this.image,-this.image.naturalWidth*scale/2,-this.image.naturalHeight*scale/2,this.image.naturalWidth*scale,this.image.naturalHeight*scale);
     this.canvas.width=this.base.width; this.canvas.height=this.base.height; this.draw();
   }
-  rotate(delta) { this.rotation=(this.rotation+delta+360)%360; this.box=fullBox(); this.rebuild(); }
+  rotate(delta) { this.rotation=normalRotation(this.rotation+delta); this.box=fullBox(); this.rebuild(); }
+  setRotation(value) { this.rotation=normalRotation(value); this.box=fullBox(); this.rebuild(); }
   reset() { this.rotation=0; this.box=fullBox(); this.rebuild(); }
   setBox(box) { this.box=constrain(box); this.draw(); }
   spec() { return {rotation:this.rotation,...this.box}; }

@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
 
-VERSION = '0.3.0'
+VERSION = '0.3.1'
 
 @dataclass(frozen=True)
 class Settings:

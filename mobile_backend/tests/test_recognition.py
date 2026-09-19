@@ -89,7 +89,7 @@ class OCRTests(unittest.TestCase):
         self.assertEqual(ocr.recognize_isbns(photograph()),['9780306406157'])
         args,kwargs=run.call_args
         self.assertEqual(args[0][1:3],['stdin','stdout'])
-        self.assertEqual(kwargs['timeout'],12)
+        self.assertLessEqual(kwargs['timeout'],4)
         self.assertEqual(kwargs['stderr'],subprocess.DEVNULL)
         self.assertTrue(kwargs['input'].startswith(b'\x89PNG'))
 

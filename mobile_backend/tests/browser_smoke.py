@@ -59,6 +59,14 @@ def main():
                     assert not uploads, 'Foto vor Zustimmung hochgeladen'
                     page.locator('#rotateRight').click()
                     expect(page.locator('#cropSize')).to_contain_text('Drehung 90')
+                    page.locator('#rotation').fill('17.5')
+                    page.locator('#rotation').dispatch_event('input')
+                    expect(page.locator('#cropSize')).to_contain_text('Drehung 17.5')
+                    page.locator('#rotateRight').click()
+                    expect(page.locator('#cropSize')).to_contain_text('Drehung 107.5')
+                    page.locator('#rotation').fill('90')
+                    page.locator('#rotation').dispatch_event('input')
+                    expect(page.locator('#cropSize')).to_contain_text('Drehung 90')
                     # Browser-generated pointer events test corner resizing in CSS coordinates.
                     canvas=page.locator('#editor')
                     canvas.scroll_into_view_if_needed()

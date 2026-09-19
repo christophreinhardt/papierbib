@@ -13,7 +13,7 @@
 <title>Papierbibliothek mobil</title>
 </head>
 <body>
-<header><div><small>MEINE PAPIERBIBLIOTHEK · 0.3.0</small><h1>Vom Buch zur ISBN.</h1></div><button id="logout" hidden>Abmelden</button></header>
+<header><div><small>MEINE PAPIERBIBLIOTHEK · 0.3.1</small><h1>Vom Buch zur ISBN.</h1></div><button id="logout" hidden>Abmelden</button></header>
 <main>
 <p id="status" role="status" aria-live="polite">Bereit. Aufnahme und Zuschnitt bleiben zunächst auf diesem Gerät.</p>
 <p id="offline" hidden>Offline: Fotografieren und Zuschneiden sind möglich. Zum Speichern bitte erneut verbinden. Ungespeicherte Fotos gehen beim Schließen verloren.</p>
@@ -40,7 +40,8 @@
 <section id="editorPanel" class="card" hidden>
 <h2>3 · Drehen und zuschneiden</h2>
 <p>Ecken ziehen, den Rahmen verschieben oder außerhalb einen neuen Rahmen aufziehen. Zum Schwenken den Scrollbereich verwenden.</p>
-<div class="row"><button id="rotateLeft">↶ 90°</button><button id="rotateRight">↷ 90°</button><button id="reset">Ganzes Original</button></div>
+  <div class="row"><button id="rotateLeft">↶ 90°</button><button id="rotateRight">↷ 90°</button><button id="reset">Ganzes Original</button></div>
+  <label>Frei drehen: <output id="rotationValue">0°</output><input id="rotation" type="range" min="-180" max="180" step="0.5" value="0" aria-label="Foto frei drehen"></label>
 <label>Ansicht vergrößern<input id="zoom" type="range" min="1" max="3" step="0.1" value="1"></label>
 <div id="viewport"><canvas id="editor" tabindex="0" aria-label="Zuschneiderahmen. Alternativ Prozentfelder verwenden."></canvas></div>
 <fieldset><legend>Ausschnitt in Prozent (auch ohne Ziehen bedienbar)</legend><div class="coords">

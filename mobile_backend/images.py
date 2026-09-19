@@ -5,11 +5,12 @@ import warnings
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Literal
 
 class CropSpec(BaseModel):
     model_config = ConfigDict(extra='forbid', allow_inf_nan=False)
-    rotation: Literal[0, 90, 180, 270] = 0
+    # Existing project revisions may contain 270°, hence accept a complete turn.
+    # The editor stores an arbitrary clockwise correction in degrees.
+    rotation: float = Field(default=0, ge=-360, le=360)
     x: float = Field(default=0, ge=0, lt=1)
     y: float = Field(default=0, ge=0, lt=1)
     width: float = Field(default=1, gt=0, le=1)

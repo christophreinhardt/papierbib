@@ -10,9 +10,21 @@ export class BarcodeScanner {
     if(this.pending)return null;
     const w=source.videoWidth||source.naturalWidth||source.width,h=source.videoHeight||source.naturalHeight||source.height;
     if(!w||!h)return null;
-    const scale=Math.min(1,1600/Math.max(w,h)),canvas=document.createElement('canvas');
+    const scale=Math.min(1,1920/Math.max(w,h)),canvas=document.createElement('canvas');
     canvas.width=Math.round(w*scale);canvas.height=Math.round(h*scale);
     const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(source,0,0,canvas.width,canvas.height);
+    // Safari/Chrome implementations with BarcodeDetector are usually faster on
+    // live camera frames. ZXing below remains the local fallback everywhere.
+    if('BarcodeDetector' in globalThis){
+      try{
+        const formats=await BarcodeDetector.getSupportedFormats?.()||[];
+        const preferred=['ean_13','ean_8','code_128','code_39','qr_code'].filter(x=>formats.includes(x));
+        if(preferred.length){
+          const detected=await new BarcodeDetector({formats:preferred}).detect(canvas);
+          for(const item of detected){if(valid(item.rawValue))return canonical(item.rawValue);}
+        }
+      }catch{/* browser implementation failed; do not abandon ZXing */}
+    }
     const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
     return new Promise((resolve,reject)=>{
       this.worker ||= new Worker('/barcode-worker.js');

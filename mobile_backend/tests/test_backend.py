@@ -118,7 +118,7 @@ class ApiTests(unittest.TestCase):
         project = self.project()
         response = self.post(f'/api/projects/{project}/captures?kind=isbn&store_images=true', content=b'not an image')
         self.assertEqual(response.status_code, 422)
-        for spec in (dict(x=.8,width=.5), dict(rotation=17), dict(width=-1), dict(x='NaN')):
+        for spec in (dict(x=.8,width=.5), dict(rotation=361), dict(width=-1), dict(x='NaN')):
             self.assertEqual(self.upload(project, **spec).status_code, 422)
         self.assertEqual(self.client.get(f'/api/projects/{project}/captures').json(), [])
 
@@ -153,12 +153,22 @@ class ApiTests(unittest.TestCase):
             other.cookies.update(self.client.cookies)
             self.assertEqual(other.get('/api/session').status_code, 401)
 
+    def test_api_accepts_half_degree_rotation(self):
+        project = self.project()
+        self.assertEqual(self.upload(project, rotation=17.5).status_code, 201)
+
 class ImageTests(unittest.TestCase):
     def test_rotation_crop_geometry_and_color(self):
         _, crop = crop_image(photograph(), CropSpec(rotation=90, height=.5), 100000)
         image = Image.open(io.BytesIO(crop['data']))
         self.assertEqual(image.size, (120,80))
         self.assertGreater(image.getpixel((60,40))[0], 240)
+
+    def test_free_rotation_is_valid_and_changes_output_geometry(self):
+        _, crop = crop_image(photograph(), CropSpec(rotation=17, x=.1, y=.1, width=.8, height=.8), 100000)
+        image = Image.open(io.BytesIO(crop['data']))
+        self.assertGreater(image.width, 100)
+        self.assertGreater(image.height, 100)
 
     def test_exif_orientation_and_no_metadata_in_crop(self):
         image = Image.new('RGB',(160,120),'white')

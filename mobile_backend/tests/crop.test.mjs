@@ -11,3 +11,8 @@ test('rotation swaps axes and returns original size after half turn',()=>{
   assert.deepEqual(rotatedSize(4000,3000,90),{width:3000,height:4000});
   assert.deepEqual(rotatedSize(4000,3000,180),{width:4000,height:3000});
 });
+test('free rotation changes bounds while exact right angles remain stable',()=>{
+  const tilted=rotatedSize(1600,900,17);
+  assert.ok(tilted.width>1600 && tilted.height>900);
+  assert.deepEqual(rotatedSize(1600,900,90),{width:900,height:1600});
+});

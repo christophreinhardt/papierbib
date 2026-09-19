@@ -1,4 +1,4 @@
-# Update auf 0.3.0 – ISBN-Erkennung
+# Update auf 0.3.1 – robuste ISBN-Erkennung und freie Drehung
 
 Für den bereits funktionierenden Stack mit Cloudflare Tunnel. Keine neuen
 API-Schlüssel oder Umgebungsvariablen notwendig. Calibre bleibt unverändert.
@@ -17,8 +17,8 @@ Im vorhandenen Repository-Verzeichnis, auf demselben Docker-Environment wie Port
 ```sh
 cd ~/papierbib
 git pull --ff-only
-docker build -t papierbib-mobile:0.3.0 mobile_backend
-docker image inspect papierbib-mobile:0.3.0 --format '{{.Id}}'
+docker build -t papierbib-mobile:0.3.1 mobile_backend
+docker image inspect papierbib-mobile:0.3.1 --format '{{.Id}}'
 ```
 
 Das Image enthält Tesseract und die lokal bereitgestellte Barcode-Bibliothek.
@@ -31,7 +31,7 @@ Nur die Image-Version ändern. `build: .` bleibt im Webeditor entfernt:
 ```yaml
 services:
   papierbib-api:
-    image: papierbib-mobile:0.3.0
+    image: papierbib-mobile:0.3.1
     pull_policy: never
     container_name: papierbib-api
     # Alle bisherigen Einstellungen darunter unverändert behalten.
@@ -76,10 +76,10 @@ muss in Portainer unter Networks bereits existieren; keine geratenen Namen benut
 curl http://127.0.0.1:8888/api/health
 ```
 
-Erwartet: `{"ok":true,"version":"0.3.0","phase":2}`.
+Erwartet: `{"ok":true,"version":"0.3.1","phase":2}`.
 
 Auf dem iPhone die App öffnen und gegebenenfalls **Neue App-Version laden**
-wählen. Oben muss **0.3.0** stehen.
+wählen. Oben muss **0.3.1** stehen.
 
 - Live: Aufnahmeart ISBN / Barcode, Kamera starten, Barcode ruhig ins Bild halten.
   Gültige ISBN stoppt den Scanner und startet lobid. Noch kein automatisches Speichern.
@@ -99,7 +99,8 @@ Metadaten werden erst beim Speichern des Buches in SQLite gesichert.
 ## Grenzen
 
 Noch keine KI-Erkennung von Titel/Autor, keine Regalfoto-Trennung und kein
-Calibre-Export. Drehung weiterhin in 90°-Schritten; freie Feinrotation ist offen.
+Calibre-Export. Der Regler **Frei drehen** korrigiert schiefe Fotos in
+0,5°-Schritten; anschließend den ISBN-/Barcodebereich eng einrahmen.
 OCR erkennt ausschließlich prüfziffergültige ISBNs und korrigiert keine vermuteten
 Ziffern. Schlechte Beleuchtung, Unschärfe, kleine oder schräge Schrift können
 eine manuelle ISBN-Eingabe erfordern. Physisches iPhone bitte selbst abnehmen.

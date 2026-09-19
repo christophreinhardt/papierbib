@@ -1,6 +1,6 @@
 # Analyse und Architekturentscheidungen — Phase 1
 
-## Ergänzung: implementierte Phase 2 (0.3.0)
+## Ergänzung: implementierte Phase 2 (0.3.1)
 
 Die folgende Phase-1-Analyse bleibt als ursprüngliche Entscheidung dokumentiert.
 Phase 2 erweitert sie ohne Änderungen am Calibre-Plugin:
@@ -28,8 +28,9 @@ Phase 2 erweitert sie ohne Änderungen am Calibre-Plugin:
 - Bilder ohne Speicherzustimmung existieren nur in Browser- und Server-RAM.
   Metadaten und erfolgreiche Katalogantworten liegen auf dem Homeserver.
 
-Kein KI-Aufruf in Phase 2. Keine freie Feinrotation, Regalerkennung oder
-Calibre-Export vorgezogen. [Update](PORTAINER-UPDATE.md) und
+Kein KI-Aufruf in Phase 2. Die Fehlerbehebung 0.3.1 ergänzt freie Drehung
+in 0,5°-Schritten sowie native/ZXing-Barcodevarianten und mehrstufige
+ISBN-OCR. Regalerkennung oder Calibre-Export bleiben offen. [Update](PORTAINER-UPDATE.md) und
 [Testbericht Phase 2](TEST_REPORT_PHASE2.md).
 
 ## Bestand

@@ -1,4 +1,4 @@
-# Papierbibliothek mobil — selbst gehostet, Version 0.3.0
+# Papierbibliothek mobil — selbst gehostet, Version 0.3.1
 
 Phase 2 ergänzt die Foto-/Projektverwaltung um lokale Barcode-Erkennung,
 ISBN-only-OCR, lobid-Abgleich und manuell geprüfte Buchdatensätze.
@@ -12,8 +12,8 @@ Zoomen, manuelles Zuschneiden, Originalspeicherung, Zuschnitt-Versionen,
 SQLite-Persistenz, eine offline ladbare Oberfläche, lokale Barcode-Worker,
 ISBN-Prüfziffern, Tesseract im Homeserver und eine editierbare Trefferprüfung.
 
-**Noch nicht enthalten:** KI für Titel/Autor, Regaltrennung, freie Feinrotation
-und Calibre-Export im neuen Dienst. KI/Regaltrennung/Export folgen in Phase 3–5. Die alte Anwendung bleibt im
+**Noch nicht enthalten:** KI für Titel/Autor, Regaltrennung und Calibre-Export
+im neuen Dienst. KI/Regaltrennung/Export folgen in Phase 3–5. Die alte Anwendung bleibt im
 Quellcode erhalten; sie ist kein Teil des neuen Container-Images.
 
 ## Wechsel von Version 0.1.0
@@ -62,7 +62,7 @@ Environment verwalten, nicht einen Swarm.
    curl http://127.0.0.1:8888/api/health
    ```
 
-   Erwartet: `{"ok":true,"version":"0.3.0","phase":2}`.
+   Erwartet: `{"ok":true,"version":"0.3.1","phase":2}`.
 5. Tailscale auf Mac und iPhone mit demselben Tailnet verbinden.
    Auf dem Mac (mit verfügbarer Tailscale-CLI):
 
@@ -89,12 +89,12 @@ Auf dem OrbStack-Mac explizit mit demselben Image-Namen bauen:
 ```sh
 git clone https://github.com/christophreinhardt/papierbib.git
 cd papierbib
-docker build -t papierbib-mobile:0.3.0 mobile_backend
+docker build -t papierbib-mobile:0.3.1 mobile_backend
 ```
 
 In einem Portainer-Webeditor-Stack den Inhalt von
 `mobile_backend/docker-compose.yml` verwenden und **nur `build: .` entfernen**.
-`image: papierbib-mobile:0.3.0` bleibt stehen; darunter `pull_policy: never`
+`image: papierbib-mobile:0.3.1` bleibt stehen; darunter `pull_policy: never`
 ergänzen und beim Update **Re-pull image ausschalten**. Das Image muss auf demselben
 Docker-Environment liegen, das Portainer verwaltet. Beim nächsten Update erst
 `git pull --ff-only`, erneut bauen und den Stack neu bereitstellen.
@@ -128,7 +128,8 @@ Die App verwendet in Produktion ausschließlich sichere Cookies über HTTPS.
 2. Aufnahmeart wählen: ISBN/Barcode, Buchrücken, Titelblatt oder Regalfoto.
 3. **Kamera starten → Foto aufnehmen** oder **iPhone-Kamera / Foto** bzw.
    **Foto auswählen**.
-4. Foto mit ±90° drehen. Rahmen an den Ecken ändern, verschieben oder
+4. Foto mit ±90° oder dem Regler **Frei drehen** in 0,5°-Schritten ausrichten.
+   Rahmen an den Ecken ändern, verschieben oder
    außerhalb einen neuen Rahmen ziehen. Der Zoomregler vergrößert nur die Ansicht;
    im vergrößerten Bild kann gescrollt werden. Prozentfelder erlauben genaue Eingaben.
 5. Vorschau prüfen. Zum Upload das Kästchen **Original und Zuschnitt auf meinem
@@ -235,7 +236,7 @@ node --test mobile_backend/tests/crop.test.mjs mobile_backend/tests/isbn.test.mj
 python -m playwright install chromium webkit
 python -m mobile_backend.tests.browser_smoke
 python -m mobile_backend.tests.recognition_smoke
-docker build -t papierbib-mobile:0.3.0 mobile_backend
+docker build -t papierbib-mobile:0.3.1 mobile_backend
 ```
 
 Die Browsertests erzeugen synthetische Testbilder und eine temporäre Datenbank.
