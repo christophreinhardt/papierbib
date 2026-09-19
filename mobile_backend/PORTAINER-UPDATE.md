@@ -1,7 +1,7 @@
-# Update auf 0.3.1 – robuste ISBN-Erkennung und freie Drehung
+# Update auf 0.4.0 – KI für Buchrücken und Titelblätter
 
-Für den bereits funktionierenden Stack mit Cloudflare Tunnel. Keine neuen
-API-Schlüssel oder Umgebungsvariablen notwendig. Calibre bleibt unverändert.
+Für den bereits funktionierenden Stack mit Cloudflare Tunnel. Calibre bleibt
+unverändert. KI ist optional und benötigt genau einen API-Schlüssel im Backend.
 
 ## 1. Sichern
 
@@ -17,8 +17,8 @@ Im vorhandenen Repository-Verzeichnis, auf demselben Docker-Environment wie Port
 ```sh
 cd ~/papierbib
 git pull --ff-only
-docker build -t papierbib-mobile:0.3.1 mobile_backend
-docker image inspect papierbib-mobile:0.3.1 --format '{{.Id}}'
+docker build -t papierbib-mobile:0.4.0 mobile_backend
+docker image inspect papierbib-mobile:0.4.0 --format '{{.Id}}'
 ```
 
 Das Image enthält Tesseract und die lokal bereitgestellte Barcode-Bibliothek.
@@ -31,7 +31,7 @@ Nur die Image-Version ändern. `build: .` bleibt im Webeditor entfernt:
 ```yaml
 services:
   papierbib-api:
-    image: papierbib-mobile:0.3.1
+    image: papierbib-mobile:0.4.0
     pull_policy: never
     container_name: papierbib-api
     # Alle bisherigen Einstellungen darunter unverändert behalten.
@@ -76,10 +76,10 @@ muss in Portainer unter Networks bereits existieren; keine geratenen Namen benut
 curl http://127.0.0.1:8888/api/health
 ```
 
-Erwartet: `{"ok":true,"version":"0.3.1","phase":2}`.
+Erwartet: `{"ok":true,"version":"0.4.0","phase":3}`.
 
 Auf dem iPhone die App öffnen und gegebenenfalls **Neue App-Version laden**
-wählen. Oben muss **0.3.1** stehen.
+wählen. Oben muss **0.4.0** stehen.
 
 - Live: Aufnahmeart ISBN / Barcode, Kamera starten, Barcode ruhig ins Bild halten.
   Gültige ISBN stoppt den Scanner und startet lobid. Noch kein automatisches Speichern.
@@ -96,10 +96,29 @@ Die reine Erkennung erfordert keine Speicherung des Fotos. Ohne separate
 Speicherzustimmung werden keine Bilddateien oder OCR-Rohtexte dauerhaft gespeichert.
 Metadaten werden erst beim Speichern des Buches in SQLite gesichert.
 
+## 6. Optional: einen KI-Anbieter in Portainer aktivieren
+
+Unter **Environment variables** genau eine der folgenden Varianten eintragen
+und den Stack danach aktualisieren. API-Schlüssel nicht im YAML, nicht in Git
+und nicht im Browser ablegen.
+
+| Variante | Variablen |
+|---|---|
+| OpenAI | `AI_PROVIDER=openai`, `OPENAI_API_KEY=...`, optional `OPENAI_VISION_MODEL=gpt-4o-mini` |
+| Gemini | `AI_PROVIDER=gemini`, `GEMINI_API_KEY=...`, optional `GEMINI_VISION_MODEL=gemini-2.0-flash` |
+
+Danach bei Aufnahmeart **Buchrücken** oder **Titelblatt** ein Foto zuschneiden
+und **Kostenpflichtig auswerten** wählen. Erst die explizite Bestätigung sendet
+den aktuellen JPEG-Zuschnitt an den ausgewählten Anbieter. Der KI-Vorschlag ist
+nicht automatisch gespeichert: Felder prüfen, optional per ISBN bei lobid suchen,
+anschließend bestätigen oder als Entwurf sichern.
+
+Der Schlüsselwert ist in `/api/vision/status`, Health, SQLite-Export und Logs nicht
+enthalten. Ohne gültigen Schlüssel bleibt die Auswertung deaktiviert.
+
 ## Grenzen
 
-Noch keine KI-Erkennung von Titel/Autor, keine Regalfoto-Trennung und kein
-Calibre-Export. Der Regler **Frei drehen** korrigiert schiefe Fotos in
+Noch keine Regalfoto-Trennung und kein Calibre-Export. Der Regler **Frei drehen** korrigiert schiefe Fotos in
 0,5°-Schritten; anschließend den ISBN-/Barcodebereich eng einrahmen.
 OCR erkennt ausschließlich prüfziffergültige ISBNs und korrigiert keine vermuteten
 Ziffern. Schlechte Beleuchtung, Unschärfe, kleine oder schräge Schrift können

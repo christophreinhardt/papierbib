@@ -1,9 +1,21 @@
 # Analyse und Architekturentscheidungen — Phase 1
 
-## Ergänzung: implementierte Phase 2 (0.3.1)
+## Ergänzung: implementierte Phase 3 (0.4.0)
 
 Die folgende Phase-1-Analyse bleibt als ursprüngliche Entscheidung dokumentiert.
-Phase 2 erweitert sie ohne Änderungen am Calibre-Plugin:
+Phase 2 erweitert sie ohne Änderungen am Calibre-Plugin. Phase 3 ergänzt die
+Auswertung einzelner Buchrücken und Titelblätter:
+
+- austauschbare, ausschließlich serverseitige Adapter für OpenAI Responses und
+  Google Gemini;
+- strikt validierte strukturierte Ergebnisse einschließlich ISBN-Prüfung;
+- explizite Kosten-/Uploadbestätigung pro Auswertung;
+- Auswahl nur konfigurierte Provider, keine Schlüssel im Browser, Projekt, Export
+  oder Log;
+- ein KI-Aufruf gleichzeitig, 40 Sekunden Backend-Limit und acht Aufrufe in fünf
+  Minuten.
+
+Die bestehende Phase 2 umfasst:
 
 - `web/scanner.mjs` und `barcode-worker.js`: ZXing 0.23.0 lokal, begrenzte
   Bildgröße und Worker-Laufzeit; keine Live-Frames im Netzwerk. Kein CDN.

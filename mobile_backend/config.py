@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
 
-VERSION = '0.3.1'
+VERSION = '0.4.0'
 
 @dataclass(frozen=True)
 class Settings:
@@ -17,6 +17,11 @@ class Settings:
     session_seconds: int = 12 * 3600
     request_limit: int = 240
     login_limit: int = 10
+    ai_provider: str = 'openai'
+    openai_api_key: str = field(default='', repr=False)
+    openai_vision_model: str = 'gpt-4o-mini'
+    gemini_api_key: str = field(default='', repr=False)
+    gemini_vision_model: str = 'gemini-2.0-flash'
 
     def __post_init__(self):
         parsed = urlsplit(self.origin)
@@ -31,6 +36,8 @@ class Settings:
             raise ValueError('PUBLIC_ORIGIN benötigt HTTPS.')
         if not 1 <= self.max_image_bytes <= 30 * 1024 * 1024:
             raise ValueError('MAX_IMAGE_BYTES muss zwischen 1 und 31457280 liegen.')
+        if self.ai_provider not in ('openai', 'gemini'):
+            raise ValueError('AI_PROVIDER muss openai oder gemini sein.')
 
     @classmethod
     def from_env(cls):
@@ -40,4 +47,9 @@ class Settings:
             database=Path(os.getenv('DATABASE_PATH', '/data/papierbib.sqlite3')),
             secure_cookie=os.getenv('COOKIE_SECURE', 'true').lower() != 'false',
             max_image_bytes=int(os.getenv('MAX_IMAGE_BYTES', '20971520')),
+            ai_provider=os.getenv('AI_PROVIDER', 'openai').lower(),
+            openai_api_key=os.getenv('OPENAI_API_KEY', ''),
+            openai_vision_model=os.getenv('OPENAI_VISION_MODEL', 'gpt-4o-mini'),
+            gemini_api_key=os.getenv('GEMINI_API_KEY', ''),
+            gemini_vision_model=os.getenv('GEMINI_VISION_MODEL', 'gemini-2.0-flash'),
         )

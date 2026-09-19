@@ -1,7 +1,8 @@
-# Papierbibliothek mobil — selbst gehostet, Version 0.3.1
+# Papierbibliothek mobil — selbst gehostet, Version 0.4.0
 
-Phase 2 ergänzt die Foto-/Projektverwaltung um lokale Barcode-Erkennung,
-ISBN-only-OCR, lobid-Abgleich und manuell geprüfte Buchdatensätze.
+Phase 3 ergänzt die Foto-/Projektverwaltung um lokale Barcode-Erkennung,
+ISBN-only-OCR, lobid-Abgleich sowie sichere KI-Auswertung einzelner Buchrücken
+und Titelblätter.
 
 **Bestehende Installation aktualisieren:** [Portainer-/Cloudflare-Update](PORTAINER-UPDATE.md).
 Der Container liefert Web-App und API unter **derselben Adresse** aus.
@@ -12,8 +13,8 @@ Zoomen, manuelles Zuschneiden, Originalspeicherung, Zuschnitt-Versionen,
 SQLite-Persistenz, eine offline ladbare Oberfläche, lokale Barcode-Worker,
 ISBN-Prüfziffern, Tesseract im Homeserver und eine editierbare Trefferprüfung.
 
-**Noch nicht enthalten:** KI für Titel/Autor, Regaltrennung und Calibre-Export
-im neuen Dienst. KI/Regaltrennung/Export folgen in Phase 3–5. Die alte Anwendung bleibt im
+**Noch nicht enthalten:** Regalerkennung und Calibre-Export im neuen Dienst.
+Diese folgen in Phase 4–5. Die alte Anwendung bleibt im
 Quellcode erhalten; sie ist kein Teil des neuen Container-Images.
 
 ## Wechsel von Version 0.1.0
@@ -47,10 +48,15 @@ Environment verwalten, nicht einen Swarm.
    | PUBLIC_ORIGIN | z. B. `https://homeserver.dein-tailnet.ts.net` |
    | HOST_BIND | `127.0.0.1` |
    | MAX_IMAGE_BYTES | optional, Standard `20971520` (20 MiB) |
+   | AI_PROVIDER | optional: `openai` oder `gemini`; Standard `openai` |
+   | OPENAI_API_KEY | nur bei OpenAI-KI-Auswertung; sonst leer lassen |
+   | OPENAI_VISION_MODEL | optional; Standard `gpt-4o-mini` |
+   | GEMINI_API_KEY | nur bei Gemini-KI-Auswertung; sonst leer lassen |
+   | GEMINI_VISION_MODEL | optional; Standard `gemini-2.0-flash` |
 
    `PUBLIC_ORIGIN` ist die exakte Adresse der **neuen** App, ohne Pfad oder
    abschließenden Slash. Nicht die GitHub-Pages-Adresse verwenden.
-   Das Passwort ist das Anmeldepasswort in der App. Kein OpenAI-/Gemini-Key nötig.
+   Das Passwort ist das Anmeldepasswort in der App. Für KI-Auswertung zusätzlich genau den Schlüssel des gewählten Anbieters setzen.
 
    Ein zufälliges Passwort lässt sich auf dem Mac mit `openssl rand -hex 24`
    erzeugen. Nur in Portainer und deinem Passwortmanager hinterlegen.
@@ -62,7 +68,7 @@ Environment verwalten, nicht einen Swarm.
    curl http://127.0.0.1:8888/api/health
    ```
 
-   Erwartet: `{"ok":true,"version":"0.3.1","phase":2}`.
+   Erwartet: `{"ok":true,"version":"0.4.0","phase":3}`.
 5. Tailscale auf Mac und iPhone mit demselben Tailnet verbinden.
    Auf dem Mac (mit verfügbarer Tailscale-CLI):
 
@@ -89,12 +95,12 @@ Auf dem OrbStack-Mac explizit mit demselben Image-Namen bauen:
 ```sh
 git clone https://github.com/christophreinhardt/papierbib.git
 cd papierbib
-docker build -t papierbib-mobile:0.3.1 mobile_backend
+docker build -t papierbib-mobile:0.4.0 mobile_backend
 ```
 
 In einem Portainer-Webeditor-Stack den Inhalt von
 `mobile_backend/docker-compose.yml` verwenden und **nur `build: .` entfernen**.
-`image: papierbib-mobile:0.3.1` bleibt stehen; darunter `pull_policy: never`
+`image: papierbib-mobile:0.4.0` bleibt stehen; darunter `pull_policy: never`
 ergänzen und beim Update **Re-pull image ausschalten**. Das Image muss auf demselben
 Docker-Environment liegen, das Portainer verwaltet. Beim nächsten Update erst
 `git pull --ff-only`, erneut bauen und den Stack neu bereitstellen.
@@ -183,8 +189,10 @@ Eine öffentliche Referenz-ISBN für einen Funktionstest: `0256018243`
 - Bild-Uploads vor dem Decoder auf Größe begrenzt; 30 s Empfangszeitlimit,
   45 s Browserzeitlimit. Ein Bilddecoder gleichzeitig, ein Uvicorn-Worker.
 - Keine Request-Access-Logs, keine Bilder/Secrets in Anwendungslogs.
-- Keine CDNs, Telemetrie oder KI-Aufrufe. Nur ISBNs gehen bei Suchvorgängen
-  an lobid. Keine Bilder an externe Anbieter; OCR ausschließlich im Homeserver.
+- Keine CDNs oder Telemetrie. Nur ISBNs gehen bei Suchvorgängen an lobid.
+  Ein Buchrücken- oder Titelblatt-Zuschnitt geht nur nach dem ausdrücklichen
+  Klick auf **Kostenpflichtig auswerten** an den gewählten KI-Anbieter.
+  OCR bleibt ausschließlich im Homeserver.
 - Lokaler ZXing-Worker (Apache-2.0); Tesseract über stdin/stdout, 12 s Prozesslimit,
   ein Decoder gleichzeitig, zehn OCR-Anfragen pro Minute.
 - lobid: feste HTTPS-Adresse, keine Weiterleitungen, 12 s Netzwerkzeitlimit,
@@ -236,7 +244,7 @@ node --test mobile_backend/tests/crop.test.mjs mobile_backend/tests/isbn.test.mj
 python -m playwright install chromium webkit
 python -m mobile_backend.tests.browser_smoke
 python -m mobile_backend.tests.recognition_smoke
-docker build -t papierbib-mobile:0.3.1 mobile_backend
+docker build -t papierbib-mobile:0.4.0 mobile_backend
 ```
 
 Die Browsertests erzeugen synthetische Testbilder und eine temporäre Datenbank.
@@ -259,9 +267,8 @@ uvicorn mobile_backend.server:create_app --factory --host 127.0.0.1 --port 8080 
 
 Siehe [ARCHITECTURE.md](ARCHITECTURE.md) für Analyse, Datenmodell,
 Calibre-Mapping und Risiken. Aktueller Teststand:
-[TEST_REPORT_PHASE2.md](TEST_REPORT_PHASE2.md); vorheriger Stand:
+[TEST_REPORT_PHASE3.md](TEST_REPORT_PHASE3.md); vorheriger Stand:
 [TEST_REPORT.md](TEST_REPORT.md).
 
-Offen: sichere neue KI-Adapter (Phase 3),
-Regalfoto-Trennung/Mehrfachrahmen (Phase 4), vollständige Projektpakete für
+Offen: Regalfoto-Trennung/Mehrfachrahmen (Phase 4), vollständige Projektpakete für
 Calibre und Migration alter mobiler Exporte (Phase 5).

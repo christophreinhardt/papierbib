@@ -13,7 +13,7 @@
 <title>Papierbibliothek mobil</title>
 </head>
 <body>
-<header><div><small>MEINE PAPIERBIBLIOTHEK · 0.3.1</small><h1>Vom Buch zur ISBN.</h1></div><button id="logout" hidden>Abmelden</button></header>
+<header><div><small>MEINE PAPIERBIBLIOTHEK · 0.4.0</small><h1>Vom Buch zur ISBN.</h1></div><button id="logout" hidden>Abmelden</button></header>
 <main>
 <p id="status" role="status" aria-live="polite">Bereit. Aufnahme und Zuschnitt bleiben zunächst auf diesem Gerät.</p>
 <p id="offline" hidden>Offline: Fotografieren und Zuschneiden sind möglich. Zum Speichern bitte erneut verbinden. Ungespeicherte Fotos gehen beim Schließen verloren.</p>
@@ -62,6 +62,12 @@
 <section id="reviewPanel" class="card">
 <h2>4 · ISBN prüfen und Buch speichern</h2>
 <p id="reviewInfo">ISBN eingeben oder einen bestätigten Fotoausschnitt erkennen lassen.</p>
+<div id="visionPanel" class="match">
+<h3>KI für Buchrücken oder Titelblatt</h3>
+<p id="visionInfo">KI-Provider werden nach Anmeldung geprüft. Nur der aktuell zugeschnittene Bildbereich wird nach ausdrücklicher Bestätigung übertragen.</p>
+<label>KI-Provider<select id="visionProvider" disabled><option>Wird geprüft …</option></select></label>
+<div class="row"><button id="visionAnalyze" disabled>Kostenpflichtig auswerten</button></div>
+</div>
 <div id="isbnCandidates" class="row" aria-label="Erkannte ISBN-Nummern"></div>
 <label>ISBN-10 oder ISBN-13<input id="bookIsbn" maxlength="80" inputmode="text" autocomplete="off" placeholder="978…"></label>
 <p>„Bei lobid suchen“ übermittelt ausschließlich die ISBN an lobid-resources / hbz. Keine Abfrage bei Google. Treffer immer selbst prüfen.</p>

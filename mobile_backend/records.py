@@ -3,6 +3,7 @@ from typing import Literal
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from .isbn import canonical
+from .vision import VisionResult
 
 
 class LookupRequest(BaseModel):
@@ -15,13 +16,21 @@ class LookupRequest(BaseModel):
         return canonical(value)
 
 
+class VisionAudit(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    result: VisionResult
+    provider: Literal['openai', 'gemini']
+    model: str = Field(min_length=1, max_length=200)
+    analyzed_at: str = Field(max_length=80)
+
+
 class BookInput(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     book_id: UUID
     photo_id: UUID | None = None
     crop_id: UUID | None = None
     status: Literal['confirmed', 'draft', 'needs_scan'] = 'draft'
-    isbn13: str = Field(max_length=80)
+    isbn13: str | None = Field(default=None, max_length=80)
     title: str | None = Field(default=None, max_length=500)
     subtitle: str | None = Field(default=None, max_length=500)
     authors: list[str] = Field(default_factory=list, max_length=30)
@@ -35,11 +44,12 @@ class BookInput(BaseModel):
     source_url: str | None = Field(default=None, max_length=500)
     fetched_at: str | None = Field(default=None, max_length=80)
     notes: str | None = Field(default=None, max_length=1000)
+    vision: VisionAudit | None = None
 
     @field_validator('isbn13')
     @classmethod
     def check_isbn(cls, value):
-        return canonical(value)
+        return canonical(value) if value else None
 
     @field_validator('authors', 'editors')
     @classmethod

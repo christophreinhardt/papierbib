@@ -1,4 +1,4 @@
-const CACHE='papierbib-shell-0.3.1';
+const CACHE='papierbib-shell-0.4.0';
 const FILES=['/','/app.mjs','/crop.mjs','/isbn.mjs','/scanner.mjs','/recognition.mjs','/barcode-worker.js','/vendor/zxing-0.23.0.min.js','/style.css','/manifest.webmanifest','/icon.svg','/icon-192.png','/icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES))));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{

@@ -180,7 +180,7 @@ class Store:
         book_id, photo, crop = data.pop('book_id'), data.pop('photo_id'), data.pop('crop_id')
         status = data.pop('status')
         from .isbn import isbn10
-        data.update(isbn10=isbn10(data['isbn13']), updated_at=now(), source='lobid-resources' if data['source_url'] else 'manual')
+        data.update(isbn10=isbn10(data['isbn13']) if data['isbn13'] else None, updated_at=now(), source='lobid-resources' if data['source_url'] else 'manual')
         with self.connect() as db:
             db.execute('BEGIN IMMEDIATE')
             existing = db.execute('SELECT project_id FROM book_records WHERE book_id=?', (book_id,)).fetchone()
@@ -192,7 +192,7 @@ class Store:
                 raise ValueError('Zuschnitt gehört nicht zum Foto.')
             # Same book_id is idempotent; a distinct copy is an explicit user decision.
             duplicates = [row['book_id'] for row in db.execute('SELECT book_id,metadata_json FROM book_records WHERE project_id=? AND book_id<>?', (project_id, book_id))
-                          if json.loads(row['metadata_json']).get('isbn13') == data['isbn13']]
+                          if data['isbn13'] and json.loads(row['metadata_json']).get('isbn13') == data['isbn13']]
             db.execute('INSERT INTO book_records VALUES (?,?,?,?,?,?,?) ON CONFLICT(book_id) DO UPDATE SET '
                        'photo_id=excluded.photo_id,crop_id=excluded.crop_id,status=excluded.status,metadata_json=excluded.metadata_json',
                        (book_id, project_id, photo, crop, status, json.dumps(data, ensure_ascii=False), now()))

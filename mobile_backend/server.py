@@ -18,7 +18,7 @@ from .config import Settings, VERSION
 from .images import CropSpec, InvalidImage, crop_image
 from .storage import Store
 from .records import BookInput, LookupRequest
-from . import lobid, ocr
+from . import lobid, ocr, vision
 
 COOKIE = 'papierbib_session'
 
@@ -51,6 +51,7 @@ def create_app(settings=None):
     credential = hashlib.sha256(settings.password.encode()).hexdigest()
     image_gate = asyncio.Semaphore(1)
     lookup_gate = asyncio.Semaphore(1)
+    vision_gate = asyncio.Semaphore(1)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -101,7 +102,7 @@ def create_app(settings=None):
                     response = JSONResponse({'detail': 'Zu viele Anfragen. Bitte später erneut versuchen.'},
                                             status_code=429, headers={'Retry-After': '300' if path == '/api/login' else '60'})
             if response is None and request.method not in ('GET', 'HEAD'):
-                maximum = settings.max_image_bytes if path.endswith('/captures') or path == '/api/isbn/ocr' else 16384
+                maximum = settings.max_image_bytes if path.endswith('/captures') or path in ('/api/isbn/ocr', '/api/vision/analyze') else 16384
                 # Auth precedes upload; bound even chunked requests before body parsing.
                 try:
                     request._body = await bounded_body(request, maximum)
@@ -125,7 +126,7 @@ def create_app(settings=None):
     def health():
         with store.connect() as db:
             db.execute('SELECT 1')
-        return dict(ok=True, version=VERSION, phase=2)
+        return dict(ok=True, version=VERSION, phase=3)
 
     @app.post('/api/login')
     def login(payload: Login, response: Response):
@@ -237,6 +238,30 @@ def create_app(settings=None):
             return dict(isbns=numbers, method='isbn-only-ocr', stored=False)
         except (ocr.OCRUnavailable, TimeoutError):
             raise HTTPException(503, 'ISBN-OCR ist nicht verfügbar oder hat das Zeitlimit erreicht. ISBN manuell eingeben.')
+
+    @app.get('/api/vision/status')
+    def vision_status():
+        providers = vision.configured(settings)
+        return dict(configured=providers, default_provider=settings.ai_provider if settings.ai_provider in providers else None,
+                    models={name: settings.openai_vision_model if name == 'openai' else settings.gemini_vision_model for name in providers})
+
+    @app.post('/api/vision/analyze')
+    async def analyze_vision(request: Request, kind: Literal['spine', 'titlepage'], provider: Literal['openai', 'gemini'] | None = None,
+                             consent: bool = False):
+        if not consent:
+            raise HTTPException(400, 'Bitte die kostenpflichtige KI-Auswertung ausdrücklich bestätigen.')
+        if not vision.configured(settings):
+            raise HTTPException(503, 'Kein KI-Anbieter ist konfiguriert. API-Schlüssel nur in Portainer hinterlegen.')
+        if not store.throttle('vision', 8, 300):
+            raise HTTPException(429, 'Zu viele KI-Auswertungen. Bitte kurz warten.')
+        data = await request.body()
+        try:
+            async with asyncio.timeout(40):
+                async with vision_gate:
+                    result = await run_in_threadpool(vision.analyze, settings, provider, data, kind)
+            return dict(result=result, stored=False)
+        except (vision.VisionError, TimeoutError):
+            raise HTTPException(503, 'KI-Auswertung fehlgeschlagen oder hat das Zeitlimit erreicht. Ausschnitt prüfen oder später erneut versuchen.')
 
     @app.get('/api/projects/{project_id}/books')
     def books(project_id: str):

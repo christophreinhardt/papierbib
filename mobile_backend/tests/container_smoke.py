@@ -19,7 +19,7 @@ def wait_ready(client):
 def main():
     with httpx.Client(base_url='http://127.0.0.1:18888',timeout=10) as client:
         wait_ready(client)
-        assert client.get('/api/health').json()['version']=='0.3.1'
+        assert client.get('/api/health').json()['version']=='0.4.0'
         assert client.get('/').status_code==200
         headers={'Origin':'https://papierbib.test','X-Papierbib':'1'}
         login=client.post('/api/login',headers=headers,json={'password':'only-for-isolated-container-test'})

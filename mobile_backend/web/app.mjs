@@ -6,8 +6,8 @@ const state={blob:null,url:null,photoId:null,cropId:null,stream:null,dirty:false
 const liveScanner=new BarcodeScanner();
 function message(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);}
 function network(){ $('offline').hidden=navigator.onLine; }
-async function api(path,{method='GET',body,headers={}}={}){
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
+async function api(path,{method='GET',body,headers={},timeout=45000}={}){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeout);
   try{
     const response=await fetch(path,{method,body,headers:{'X-Papierbib':'1',...headers},credentials:'same-origin',signal:controller.signal});
     if(!response.ok){
@@ -78,7 +78,7 @@ const editor=new CropEditor($('editor'),$('cropPreview'),(spec,size)=>{
 });
 const recognition=new Recognition({api,json,notify:message,project:()=>state.project,
   crop:()=>editor.capture(),context:()=>({photo_id:state.photoId,crop_id:state.cropId}),stopCamera,
-  lock:value=>{state.busy=value;$('editorPanel').inert=value;},isLocked:()=>state.busy
+  lock:value=>{state.busy=value;$('editorPanel').inert=value;},isLocked:()=>state.busy,kind:()=>$('kind').value
 });
 async function loadBlob(blob,photoId=null,spec={rotation:0,...fullBox()}){
   if(blob.size>20*1024*1024)throw new Error('Bitte ein Foto bis 20 MiB wählen.');
@@ -159,13 +159,13 @@ async function save(){
       : await api('/api/projects/'+state.project+'/captures?'+new URLSearchParams({...spec,kind:$('kind').value,store_images:'true'}),{method:'POST',body:state.blob,headers:{'Content-Type':state.blob.type}});
     const saved=await response.json();state.photoId=saved.photo_id;state.cropId=saved.crop_id;state.dirty=false;$('persist').checked=false;
     $('save').textContent='Neue Zuschnitt-Version speichern';
-    await gallery();message('Gespeichert. Weiter mit „Ausschnitt bestätigen und ISBN erkennen“. Titel-/Autor-KI folgt in Phase 3.');
+    await gallery();message('Gespeichert. Bei ISBN „Ausschnitt bestätigen und ISBN erkennen“ wählen; Buchrücken und Titelblatt über „Kostenpflichtig auswerten“ prüfen.');
   }finally{state.busy=false;$('save').disabled=false;$('editorPanel').inert=false;}
 }
 action('loginForm',async()=>{
   const password=$('password').value;$('password').value='';
   await json('/api/login',{password});$('loginPanel').hidden=true;$('logout').hidden=false;
-  await projects();message('Angemeldet.');
+  await projects();await recognition.visionStatus();message('Angemeldet.');
 },'submit');
 action('logout',async()=>{
   if(!mayReplace())return;
@@ -201,7 +201,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera(
 window.addEventListener('beforeunload',event=>{if(state.dirty||recognition.dirty){event.preventDefault();event.returnValue='';}});
 window.addEventListener('online',network);window.addEventListener('offline',network);network();
 async function initialize(){
-  try{await api('/api/session');$('loginPanel').hidden=true;$('logout').hidden=false;await projects();}
+  try{await api('/api/session');$('loginPanel').hidden=true;$('logout').hidden=false;await projects();await recognition.visionStatus();}
   catch(error){
     if(error.httpStatus===401)message('Bitte anmelden. Fotos können bereits lokal zugeschnitten werden.');
     else message(error.message,true);

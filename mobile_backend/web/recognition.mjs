@@ -4,15 +4,16 @@ const $=id=>document.getElementById(id);
 const fields=['title','subtitle','authors','editors','publisher','publication_year','language','edition','extent','publication_place','notes'];
 
 export class Recognition {
-  constructor({api,json,notify,project,crop,context,stopCamera,lock,isLocked}){
-    Object.assign(this,{api,json,notify,project,crop,context,stopCamera,lock,isLocked});
-    this.scanner=new BarcodeScanner();this.dirty=false;this.busy=false;this.record={};this.bookId=crypto.randomUUID();this.link={};
+  constructor({api,json,notify,project,crop,context,stopCamera,lock,isLocked,kind}){
+    Object.assign(this,{api,json,notify,project,crop,context,stopCamera,lock,isLocked,kind});
+    this.scanner=new BarcodeScanner();this.dirty=false;this.busy=false;this.record={};this.vision=null;this.bookId=crypto.randomUUID();this.link={};
     this.bind('recognize',()=>this.recognize());
     this.bind('lookup',()=>this.lookup());
     this.bind('confirmBook',()=>this.save('confirmed'));
     this.bind('draftBook',()=>this.save('draft'));
     this.bind('rescanBook',()=>this.save('needs_scan'));
     this.bind('newBook',()=>{if(this.mayReplace())this.reset();});
+    this.bind('visionAnalyze',()=>this.analyzeVision());
     $('bookIsbn').addEventListener('input',()=>{
       this.dirty=true;this.record={};$('matches').replaceChildren();
       // Changing ISBN invalidates old edition metadata, not the user's notes.
@@ -28,7 +29,7 @@ export class Recognition {
   });}
   mayReplace(){return !this.dirty||confirm('Ungespeicherte Metadaten verwerfen?');}
   reset(){
-    this.record={};this.bookId=crypto.randomUUID();this.link={};this.dirty=false;
+    this.record={};this.vision=null;this.bookId=crypto.randomUUID();this.link={};this.dirty=false;
     $('bookIsbn').value='';for(const key of fields)$('book_'+key).value='';
     $('matches').replaceChildren();$('isbnCandidates').replaceChildren();$('reviewInfo').textContent='ISBN eingeben oder einen bestätigten Fotoausschnitt erkennen lassen.';
   }
@@ -36,6 +37,36 @@ export class Recognition {
     this.record={...record};
     for(const key of fields)$('book_'+key).value=Array.isArray(record[key])?record[key].join('\n'):(record[key]??'');
     this.dirty=true;
+  }
+  async visionStatus(){
+    const select=$('visionProvider'),info=$('visionInfo');
+    try{
+      const status=await (await this.api('/api/vision/status')).json();
+      select.replaceChildren();
+      for(const provider of status.configured)select.add(new Option(provider+' · '+status.models[provider],provider));
+      select.value=status.default_provider||status.configured[0]||'';
+      select.disabled=!status.configured.length;$('visionAnalyze').disabled=!status.configured.length;
+      info.textContent=status.configured.length?'Für Buchrücken und Titelblatt verfügbar. API-Schlüssel bleiben ausschließlich im Homeserver.':'Kein KI-Provider konfiguriert. OPENAI_API_KEY oder GEMINI_API_KEY nur in Portainer setzen.';
+    }catch(error){select.disabled=true;$('visionAnalyze').disabled=true;info.textContent='KI-Provider konnte nicht geprüft werden.';}
+  }
+  async analyzeVision(){
+    const kind=this.kind();
+    if(!['spine','titlepage'].includes(kind))throw new Error('Für KI-Auswertung bitte Aufnahmeart „Buchrücken“ oder „Titelblatt“ wählen.');
+    if(!confirm('Kostenpflichtige KI-Auswertung starten? Nur der aktuelle Zuschnitt wird an den gewählten Anbieter gesendet. Die Nutzung kann Kosten verursachen.'))return;
+    this.stopCamera();const image=await this.crop();
+    const blob=await new Promise(resolve=>image.toBlob(resolve,'image/jpeg',0.96));image.width=image.height=1;
+    if(!blob)throw new Error('Zuschnitt konnte nicht erzeugt werden.');
+    this.notify('KI wertet den bestätigten Zuschnitt aus …');
+    const provider=$('visionProvider').value;
+    const response=await this.api('/api/vision/analyze?'+new URLSearchParams({kind,provider,consent:'true'}),{method:'POST',body:blob,headers:{'Content-Type':'image/jpeg'},timeout:60000});
+    const data=(await response.json()).result;
+    this.vision={result:{raw_text:data.raw_text,title:data.title,subtitle:data.subtitle,authors:data.authors,publisher:data.publisher,language:data.language,publication_year:data.publication_year,isbn10:data.isbn10,isbn13:data.isbn13,confidence:data.confidence},provider:data.provider,model:data.model,analyzed_at:data.analyzed_at};
+    this.record={};this.link=this.context();
+    if(data.isbn13)$('bookIsbn').value=data.isbn13;
+    this.populate(data);
+    $('reviewInfo').textContent='KI-Vorschlag von '+data.provider+' · '+data.model+'. Alle Felder prüfen, bei ISBN optional lobid suchen und erst dann speichern.';
+    this.notify('KI-Vorschlag übernommen. Bitte Angaben prüfen.',false);
+    $('reviewPanel').scrollIntoView({behavior:'smooth',block:'start'});
   }
   async accept(value,automatic=false){
     if(!this.mayReplace())return;
@@ -86,15 +117,16 @@ export class Recognition {
   }
   async save(status){
     if(!this.project())throw new Error('Bitte anmelden und ein Projekt wählen.');
-    const isbn=canonical($('bookIsbn').value),data={book_id:this.bookId,...this.link,status,isbn13:isbn};
+    const entered=$('bookIsbn').value.trim(),isbn=entered?canonical(entered):null,data={book_id:this.bookId,...this.link,status,isbn13:isbn};
     for(const key of fields){
       const value=$('book_'+key).value.trim();
       data[key]=['authors','editors'].includes(key)?value.split('\n').map(v=>v.trim()).filter(Boolean):key==='publication_year'?(value?Number(value):null):(value||null);
     }
     data.source_url=this.record.source_url||null;data.fetched_at=this.record.fetched_at||null;
+    data.vision=this.vision;
     if(status==='confirmed'&&!data.title)throw new Error('Zum Bestätigen einen Titel eingeben oder als Entwurf speichern.');
     const existing=await (await this.api('/api/projects/'+this.project()+'/books')).json();
-    if(existing.some(x=>x.isbn13===isbn&&x.book_id!==this.bookId)&&!confirm('Diese ISBN ist im Projekt bereits gespeichert. Ein weiteres Exemplar anlegen?'))return;
+    if(isbn&&existing.some(x=>x.isbn13===isbn&&x.book_id!==this.bookId)&&!confirm('Diese ISBN ist im Projekt bereits gespeichert. Ein weiteres Exemplar anlegen?'))return;
     await this.json('/api/projects/'+this.project()+'/books',data);this.dirty=false;
     await this.refresh();this.notify('Buch gespeichert'+(status==='draft'?' (Entwurf).':status==='needs_scan'?' (erneut erfassen).':'.'));
   }
@@ -103,12 +135,12 @@ export class Recognition {
     const rows=await (await this.api('/api/projects/'+this.project()+'/books')).json();
     for(const row of rows){
       const article=document.createElement('article');article.className='match';
-      const text=document.createElement('p');text.textContent=(row.title||'Ohne Titel')+' · '+row.isbn13+' · '+({confirmed:'Bestätigt',draft:'Entwurf',needs_scan:'Erneut erfassen'}[row.status]||row.status);
+      const text=document.createElement('p');text.textContent=(row.title||'Ohne Titel')+(row.isbn13?' · '+row.isbn13:' · ohne ISBN')+' · '+({confirmed:'Bestätigt',draft:'Entwurf',needs_scan:'Erneut erfassen'}[row.status]||row.status);
       const button=document.createElement('button');button.textContent='Buch bearbeiten';
       button.onclick=()=>{
         if(this.busy||!this.mayReplace())return;
         this.reset();this.bookId=row.book_id;this.link={photo_id:row.photo_id,crop_id:row.crop_id};
-        $('bookIsbn').value=row.isbn13;this.populate(row);this.dirty=false;
+        $('bookIsbn').value=row.isbn13||'';this.vision=row.vision||null;this.populate(row);this.dirty=false;
         $('reviewPanel').scrollIntoView({behavior:'smooth',block:'start'});
       };
       article.append(text,button);$('books').append(article);
