@@ -60,9 +60,6 @@ async function capture() {
   cameraStatus(`Aufnahme gespeichert · ${canvas.width} × ${canvas.height} Pixel · ${modeLabel()}`);
   if (state.mode === 'isbn') {
     await scanBarcode(canvas);
-  } else {
-    // Analyze spine and title-page photos locally with OCR immediately.
-    await ocr();
   }
 }
 async function scanBarcode(canvas) {
@@ -135,10 +132,10 @@ async function ocr() {
     if (!window.Tesseract) await new Promise((resolve, reject) => { const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'; s.onload=resolve; s.onerror=()=>reject(new Error('Tesseract konnte nicht geladen werden')); document.head.append(s); });
     const imageForOcr = await preprocessForOcr(state.image);
     const result = await window.Tesseract.recognize(imageForOcr, 'deu+eng', { logger: m => { if (m.status && m.progress) status(`OCR: ${m.status} ${Math.round(m.progress*100)} %`); } });
-    const text = result.data.text.trim(); $('rawText').value = text;
+    const text = result.data.text.trim();
     const candidate = (text.match(/[0-9Xx][0-9Xx -]{9,20}/g) || []).map(validIsbn).find(Boolean);
     if (candidate) { $('isbn').value = candidate; status(`OCR abgeschlossen · ISBN ${candidate} erkannt. Bitte prüfen und lobid suchen.`); }
-    else status('OCR abgeschlossen. Titel und Autor bitte prüfen und danach lobid suchen.');
+    else status('Keine ISBN erkannt. Bitte ein schärferes ISBN-Foto aufnehmen.', true);
   } catch (error) { status(`OCR fehlgeschlagen: ${error.message}`, true); } finally { $('ocr').disabled = false; }
 }
 async function analyzeWithBackend() {
@@ -157,8 +154,9 @@ async function analyzeWithBackend() {
   if (result.publisher) $('publisher').value = result.publisher;
   if (result.year) $('year').value = result.year;
   if (result.isbn13 || result.isbn10) $('isbn').value = result.isbn13 || result.isbn10;
-  if (result.rawText) $('rawText').value = result.rawText;
-  status(`KI-Auswertung abgeschlossen (${result.source || 'Backend'}). Bitte prüfen.`);
+  const hasUsefulResult = Boolean(result.title || result.author || result.publisher || result.year || result.isbn10 || result.isbn13);
+  if (hasUsefulResult) status(`KI-Auswertung abgeschlossen (${result.source || 'Backend'}). Bitte prüfen.`);
+  else { status('KI lieferte keine verwertbaren Angaben. ISBN-OCR wird versucht ...'); await ocr(); }
 }
 function dataUrlBlob(value) {
   const [meta, encoded] = value.split(',');
@@ -179,6 +177,6 @@ async function exportJson() { download(`papierbibliothek-${new Date().toISOStrin
 async function exportCsv() { const rows=await allBooks(); const fields=['isbn','title','author','publisher','year','captureType','source','status','rawText','createdAt']; const cell=v=>`"${String(v ?? '').replaceAll('"','""')}"`; download(`papierbibliothek-${new Date().toISOString().slice(0,10)}.csv`,'text/csv;charset=utf-8','\ufeff'+[fields.join(';'),...rows.map(r=>fields.map(f=>cell(r[f])).join(';'))].join('\n')); }
 function setMode(mode) { state.mode=mode; document.querySelectorAll('.mode').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode)); if (state.stream) cameraStatus(`Kamera aktiv · Modus: ${modeLabel()}`); }
 
-document.querySelectorAll('.mode').forEach(button=>button.onclick=()=>setMode(button.dataset.mode)); $('startCamera').onclick=()=>startCamera().catch(error=>cameraStatus(error.message,true)); $('stopCamera').onclick=stopCamera; $('capture').onclick=()=>capture().catch(error=>cameraStatus(error.message,true)); $('lookup').onclick=lookup; $('ocr').onclick=ocr; $('aiAnalyze').onclick=()=>analyzeWithBackend().catch(error=>status(`KI-Auswertung fehlgeschlagen: ${error.message}`,true)); $('save').onclick=()=>save().catch(error=>status(`Speichern fehlgeschlagen: ${error.message}`,true)); $('exportJson').onclick=exportJson; $('exportCsv').onclick=exportCsv; $('clearAll').onclick=async()=>{ if(confirm('Alle lokal gespeicherten Datensätze löschen?')) { const db=state.db; const tx=db.transaction('books','readwrite'); tx.objectStore('books').clear(); tx.oncomplete=render; } }; $('helpButton').onclick=()=>$('helpDialog').showModal(); $('closeHelp').onclick=()=>$('helpDialog').close(); window.addEventListener('pagehide',stopCamera);
+document.querySelectorAll('.mode').forEach(button=>button.onclick=()=>setMode(button.dataset.mode)); $('startCamera').onclick=()=>startCamera().catch(error=>cameraStatus(error.message,true)); $('stopCamera').onclick=stopCamera; $('capture').onclick=()=>capture().catch(error=>cameraStatus(error.message,true)); $('lookup').onclick=lookup; $('ocr').onclick=ocr; $('aiAnalyze').onclick=async()=>{ try { await analyzeWithBackend(); } catch (error) { status(`KI-Auswertung fehlgeschlagen: ${error.message}. ISBN-OCR wird versucht ...`,true); await ocr(); } }; $('save').onclick=()=>save().catch(error=>status(`Speichern fehlgeschlagen: ${error.message}`,true)); $('exportJson').onclick=exportJson; $('exportCsv').onclick=exportCsv; $('clearAll').onclick=async()=>{ if(confirm('Alle lokal gespeicherten Datensätze löschen?')) { const db=state.db; const tx=db.transaction('books','readwrite'); tx.objectStore('books').clear(); tx.oncomplete=render; } }; $('helpButton').onclick=()=>$('helpDialog').showModal(); $('closeHelp').onclick=()=>$('helpDialog').close(); window.addEventListener('pagehide',stopCamera);
 $('backendUrl').value = localStorage.getItem('papierbib-backend-url') || ''; $('backendToken').value = sessionStorage.getItem('papierbib-backend-token') || '';
 state.db = await openDb(); await render();
