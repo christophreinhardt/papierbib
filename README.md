@@ -9,7 +9,7 @@ ISBN-only-OCR, lobid und geprüfte Buchdatensätze. [Update bestehender Portaine
 und Cloudflare-Installationen](mobile_backend/PORTAINER-UPDATE.md).
 KI, Regaltrennung und Calibre-Übergabe folgen in den nächsten Phasen.
 
-Papierbücher anhand eigener Regalfotos oder direkt per Kamera erfassen und nach Prüfung in Calibre übernehmen. Version **0.6.12** zeigt neu angelegte Bücher unmittelbar in der geöffneten Calibre-Bibliothek an. Für Kameraaufnahmen wird automatisch das größte von der Kamera gemeldete Videoformat verwendet; lokale Titelblattzuschnitte werden in voller Auflösung gespeichert. Titelblattaufnahme, Drehung, Zuschnitt, Mehrfachlöschung und ausdrücklich bestätigte KI-Auswertung bleiben verfügbar. Keine zusätzlichen Python-Pakete erforderlich.
+Papierbücher anhand eigener Regalfotos oder direkt per Kamera erfassen und nach Prüfung in Calibre übernehmen. Version **0.6.13** lädt nach Neuanlagen auch Calibres Tabellen-Datenbankcache neu, damit neue Bücher unmittelbar sichtbar werden. Für Kameraaufnahmen wird automatisch das größte von der Kamera gemeldete Videoformat verwendet; lokale Titelblattzuschnitte werden in voller Auflösung gespeichert. Titelblattaufnahme, Drehung, Zuschnitt, Mehrfachlöschung und ausdrücklich bestätigte KI-Auswertung bleiben verfügbar. Keine zusätzlichen Python-Pakete erforderlich.
 
 ## Fotos löschen
 
@@ -79,7 +79,7 @@ Der frei konfigurierbare Anbieter muss eine einfache HTTPS-URL akzeptieren und e
 
 ## KI-Anbieter wählen: OpenAI oder Google Gemini
 
-1. ZIP `dist/Papierbibliothek-0.6.12.zip` in Calibre als Erweiterung laden und Calibre neu starten.
+1. ZIP `dist/Papierbibliothek-0.6.13.zip` in Calibre als Erweiterung laden und Calibre neu starten.
 2. In **Papierbibliothek → KI- und Datenbank-Einstellungen → KI-Anbieter** entweder **OpenAI** oder **Google Gemini** wählen. OpenAI bleibt die Voreinstellung vorhandener Installationen.
 3. Für Gemini einen eigenen API-Schlüssel aus [Google AI Studio](https://aistudio.google.com/apikey) im Feld **Gemini-Schlüssel (nur Sitzung)** eingeben. Alternativ `GEMINI_API_KEY` in der Umgebung bereitstellen, aus der Calibre gestartet wird. `GOOGLE_API_KEY` wird bewusst nicht automatisch verwendet. OpenAI verwendet weiterhin ausschließlich seinen Sitzungsschlüssel oder `OPENAI_API_KEY`.
 4. Das jeweilige Modell auswählen oder eine Modell-ID eingeben. Beide Anbieter behalten getrennte Modellwerte und Sitzungsschlüssel. Nicht aktive Eingabefelder sind deaktiviert. **Speichern** übernimmt die Auswahl, aber schreibt keine Schlüssel auf Festplatte.
@@ -133,7 +133,7 @@ Vor dem Upgrade den gesamten Projektordner sichern. Das neue ZIP wie unten besch
 
 ## Installation
 
-1. Calibre öffnen. Unter **Einstellungen → Erweiterungen → Erweiterung aus Datei laden** die Datei `dist/Papierbibliothek-0.6.12.zip` auswählen. Je nach Übersetzung heißt der Bereich „Plugins“.
+1. Calibre öffnen. Unter **Einstellungen → Erweiterungen → Erweiterung aus Datei laden** die Datei `dist/Papierbibliothek-0.6.13.zip` auswählen. Je nach Übersetzung heißt der Bereich „Plugins“.
 2. Calibre neu starten.
 3. Falls der Eintrag fehlt: Unter **Einstellungen → Symbolleisten & Menüs → Hauptsymbolleiste** die Aktion **Papierbibliothek** hinzufügen.
 4. **Papierbibliothek** in der Symbolleiste öffnen.

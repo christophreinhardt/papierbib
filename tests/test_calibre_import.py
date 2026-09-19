@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import Mock,patch
 
 from calibre.ebooks.metadata.book.base import Metadata
+from calibre.gui2.library.models import BooksModel
 from calibre.library import db as open_library
 from qt.core import Qt,QInputDialog
 
@@ -120,24 +121,38 @@ class ImportTests(unittest.TestCase):
     def test_real_temporary_calibre_library(self):
         with tempfile.TemporaryDirectory(prefix='pb-lib-',dir=Path.home()) as library_path:
             library=open_library(library_path)
+            model=BooksModel()
             try:
+                model.set_database(library)
+                self.assertEqual(model.rowCount(),0)
                 api=library.new_api
                 result=import_books(self.store,self.project,[{'book_id':self.book.book_id,'action':'create'}],
                                     api,self.cancel,lambda value:None)
                 book_id=result['changed_ids'][0]
+                gui=Mock();gui.library_view.model.return_value=model
+                MainDialog.refresh_calibre(Mock(calibre_gui=gui),[book_id],1)
+                self.assertEqual(model.rowCount(),1)
                 self.assertEqual(api.search('identifiers:"=isbn:9783150099001"'),{book_id})
                 mi=api.get_metadata(book_id)
                 self.assertEqual(mi.title,'Die Verwandlung');self.assertEqual(mi.authors,['Franz Kafka','Max Mustermann'])
                 self.assertIn('Papierbuch',mi.tags)
             finally:
+                model.stop_metadata_backup()
                 library.close()
 
-    def test_gui_refresh_announces_new_rows_before_refreshing_ids(self):
+    def test_gui_refresh_reloads_model_for_new_rows(self):
         model=Mock();gui=Mock();gui.library_view.model.return_value=model
         MainDialog.refresh_calibre(Mock(calibre_gui=gui),[42,43],2)
-        model.books_added.assert_called_once_with(2)
-        model.refresh_ids.assert_called_once_with({42,43})
+        model.refresh.assert_called_once_with()
+        model.refresh_ids.assert_not_called()
+        gui.refresh_cover_browser.assert_called_once_with()
         gui.tags_view.recount.assert_called_once_with()
+
+    def test_gui_refresh_updates_existing_rows_without_full_reset(self):
+        model=Mock();gui=Mock();gui.library_view.model.return_value=model
+        MainDialog.refresh_calibre(Mock(calibre_gui=gui),[42],0)
+        model.refresh_ids.assert_called_once_with({42})
+        model.refresh.assert_not_called()
 
     def test_gui_refresh_falls_back_to_full_model_refresh(self):
         model=Mock();model.books_added.side_effect=RuntimeError('changed API')

@@ -799,14 +799,17 @@ class MainDialog(QDialog):
         if not ids or self.calibre_gui is None:return
         model=self.calibre_gui.library_view.model()
         try:
-            # refresh_ids() only repaints rows already known to the model.
-            # Calibre 9.x requires books_added() when new_api created rows.
-            if added:model.books_added(added)
-            model.refresh_ids(set(ids))
+            # Writes happen through current_db.new_api.  For new books the
+            # legacy cache behind BooksModel must be reloaded as well; merely
+            # announcing rows with books_added() leaves that cache stale.
+            if added:model.refresh()
+            else:model.refresh_ids(set(ids))
         except Exception:
             # Slower, public fallback for changed Calibre model behaviour.
             try:model.refresh()
             except Exception:pass
+        try:self.calibre_gui.refresh_cover_browser()
+        except Exception:pass
         try:self.calibre_gui.tags_view.recount()
         except Exception:pass
 
