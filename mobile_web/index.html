@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#143642">
+  <meta name="description" content="Papierbibliothek: Bücher mit dem iPhone erfassen">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+  <title>Papierbibliothek mobil</title>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">PAPIERBIBLIOTHEK</p>
+        <h1>Bücher erfassen</h1>
+      </div>
+      <button id="helpButton" class="icon-button" aria-label="Hilfe">?</button>
+    </header>
+
+    <section class="card camera-card">
+      <div class="mode-row" role="group" aria-label="Aufnahmeart">
+        <button class="mode active" data-mode="isbn">ISBN / Barcode</button>
+        <button class="mode" data-mode="spine">Buchrücken</button>
+        <button class="mode" data-mode="titlepage">Titelblatt</button>
+      </div>
+      <video id="preview" autoplay muted playsinline></video>
+      <canvas id="canvas" hidden></canvas>
+      <div class="camera-actions">
+        <button id="startCamera" class="primary">Kamera starten</button>
+        <button id="capture" disabled>Foto aufnehmen</button>
+        <button id="stopCamera" disabled>Kamera stoppen</button>
+      </div>
+      <p id="cameraStatus" class="status" role="status">Kamera noch nicht gestartet.</p>
+      <p class="privacy">Die Kamera läuft lokal im Browser. Bilder werden nur auf diesem Gerät gespeichert, bis du sie exportierst.</p>
+    </section>
+
+    <section class="card result-card">
+      <h2>Ergebnis bearbeiten</h2>
+      <img id="still" class="still" alt="Aufnahmevorschau" hidden>
+      <div class="form-grid">
+        <label>ISBN-10 oder ISBN-13<input id="isbn" inputmode="numeric" autocomplete="off" placeholder="z. B. 978..." /></label>
+        <label>Titel<input id="title" autocomplete="off" /></label>
+        <label>Autor<input id="author" autocomplete="off" /></label>
+        <label>Verlag<input id="publisher" autocomplete="off" /></label>
+        <label>Erscheinungsjahr<input id="year" inputmode="numeric" /></label>
+        <label>Rohtext / Notiz<textarea id="rawText" rows="3"></textarea></label>
+      </div>
+      <div class="action-row">
+        <button id="lookup" class="primary">Bei lobid suchen</button>
+        <button id="ocr">OCR versuchen</button>
+        <button id="save">In Tabelle speichern</button>
+      </div>
+      <p id="resultStatus" class="status" role="status"></p>
+    </section>
+
+    <section class="card table-card">
+      <div class="table-heading">
+        <h2>Erfasste Bücher <span id="count">0</span></h2>
+        <div>
+          <button id="exportJson">JSON exportieren</button>
+          <button id="exportCsv">CSV exportieren</button>
+          <button id="clearAll" class="danger">Tabelle leeren</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ISBN</th><th>Titel</th><th>Autor</th><th>Quelle / Status</th><th></th></tr></thead>
+          <tbody id="books"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <dialog id="helpDialog">
+    <h2>Hilfe</h2>
+    <p>Auf dem iPhone zuerst „Kamera starten“ erlauben. Für ISBN und Barcode wird die Rückkamera verwendet. Das Plugin nutzt die größtmögliche vom Gerät gemeldete Kameraauflösung.</p>
+    <p>ISBNs werden lokal geprüft und mit <strong>lobid-resources / hbz</strong> abgefragt. Bei Buchrücken und Titelblättern kannst du das Foto speichern, OCR versuchen und die erkannten oder manuell ergänzten Angaben suchen.</p>
+    <p>Die Tabelle liegt lokal im Browser. JSON eignet sich als Projektzwischenstand; CSV kann später in die Papierbibliothek übernommen werden. Für GitHub Pages ist kein API-Schlüssel nötig.</p>
+    <button id="closeHelp" class="primary">Schließen</button>
+  </dialog>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+"""German Qt interface."""
