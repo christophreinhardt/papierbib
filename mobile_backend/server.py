@@ -1,4 +1,4 @@
-"""Phase-1 same-origin PWA. Legacy app.py is intentionally not mounted."""
+"""Same-origin PWA with ISBN recognition. Legacy app.py is intentionally not mounted."""
 import asyncio
 import hashlib
 import hmac
@@ -17,6 +17,8 @@ from starlette.concurrency import run_in_threadpool
 from .config import Settings, VERSION
 from .images import CropSpec, InvalidImage, crop_image
 from .storage import Store
+from .records import BookInput, LookupRequest
+from . import lobid, ocr
 
 COOKIE = 'papierbib_session'
 
@@ -48,6 +50,7 @@ def create_app(settings=None):
     store = Store(settings.database)
     credential = hashlib.sha256(settings.password.encode()).hexdigest()
     image_gate = asyncio.Semaphore(1)
+    lookup_gate = asyncio.Semaphore(1)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -98,7 +101,7 @@ def create_app(settings=None):
                     response = JSONResponse({'detail': 'Zu viele Anfragen. Bitte später erneut versuchen.'},
                                             status_code=429, headers={'Retry-After': '300' if path == '/api/login' else '60'})
             if response is None and request.method not in ('GET', 'HEAD'):
-                maximum = settings.max_image_bytes if path.endswith('/captures') else 4096
+                maximum = settings.max_image_bytes if path.endswith('/captures') or path == '/api/isbn/ocr' else 16384
                 # Auth precedes upload; bound even chunked requests before body parsing.
                 try:
                     request._body = await bounded_body(request, maximum)
@@ -122,7 +125,7 @@ def create_app(settings=None):
     def health():
         with store.connect() as db:
             db.execute('SELECT 1')
-        return dict(ok=True, version=VERSION, phase=1)
+        return dict(ok=True, version=VERSION, phase=2)
 
     @app.post('/api/login')
     def login(payload: Login, response: Response):
@@ -201,9 +204,60 @@ def create_app(settings=None):
             raise HTTPException(404, 'Zuschnitt nicht gefunden.')
         return Response(image, media_type='image/jpeg')
 
+    @app.post('/api/isbn/lookup')
+    async def lookup_isbn(payload: LookupRequest):
+        cached = await run_in_threadpool(store.cached_metadata, payload.isbn)
+        if cached is not None:
+            return dict(isbn13=payload.isbn, matches=cached, cached=True, error=None)
+        if not store.throttle('lobid', 30, 60):
+            raise HTTPException(429, 'Zu viele Kataloganfragen. ISBN kann trotzdem als Entwurf gespeichert werden.')
+        try:
+            async with asyncio.timeout(20):
+                async with lookup_gate:
+                    cached = await run_in_threadpool(store.cached_metadata, payload.isbn)
+                    if cached is None:
+                        cached = await run_in_threadpool(lobid.lookup, payload.isbn)
+                        await run_in_threadpool(store.cache_metadata, payload.isbn, cached)
+            return dict(isbn13=payload.isbn, matches=cached, cached=False, error=None)
+        except (lobid.ProviderError, TimeoutError):
+            return dict(isbn13=payload.isbn, matches=[], cached=False,
+                        error='lobid ist derzeit nicht verfügbar oder liefert keine nutzbare Antwort. ISBN als Entwurf speichern oder später erneut suchen.')
+
+    @app.post('/api/isbn/ocr')
+    async def isbn_ocr(request: Request, crop_confirmed: bool = False):
+        if not crop_confirmed:
+            raise HTTPException(400, 'Zuerst den ISBN-Ausschnitt im Editor bestätigen.')
+        if not store.throttle('ocr', 10, 60):
+            raise HTTPException(429, 'Zu viele OCR-Anfragen. Bitte kurz warten oder ISBN manuell eingeben.')
+        data = await request.body()
+        try:
+            async with asyncio.timeout(20):
+                async with image_gate:
+                    numbers = await run_in_threadpool(ocr.recognize_isbns, data, settings.max_pixels)
+            return dict(isbns=numbers, method='isbn-only-ocr', stored=False)
+        except (ocr.OCRUnavailable, TimeoutError):
+            raise HTTPException(503, 'ISBN-OCR ist nicht verfügbar oder hat das Zeitlimit erreicht. ISBN manuell eingeben.')
+
+    @app.get('/api/projects/{project_id}/books')
+    def books(project_id: str):
+        if not store.has_project(project_id):
+            raise HTTPException(404, 'Projekt nicht gefunden.')
+        return store.books(project_id)
+
+    @app.post('/api/projects/{project_id}/books')
+    def save_book(project_id: str, payload: BookInput):
+        if not store.has_project(project_id):
+            raise HTTPException(404, 'Projekt nicht gefunden.')
+        if payload.status == 'confirmed' and not payload.title:
+            raise HTTPException(422, 'Zum Bestätigen einen Titel eingeben oder als Entwurf speichern.')
+        try:
+            return store.save_book(project_id, payload)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
     @app.api_route('/api/{unknown:path}', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])
     def unknown_api(unknown: str):
-        raise HTTPException(404, 'Diese Funktion ist in Phase 1 nicht verfügbar.')
+        raise HTTPException(404, 'Diese Funktion ist noch nicht verfügbar.')
 
     web = Path(__file__).parent / 'web'
 

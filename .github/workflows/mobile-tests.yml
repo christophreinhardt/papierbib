@@ -25,10 +25,11 @@ jobs:
           node-version: '22'
       - run: pip install -r mobile_backend/requirements-dev.txt
       - run: python -m unittest discover -s mobile_backend/tests -v
-      - run: node --test mobile_backend/tests/crop.test.mjs
+      - run: node --test mobile_backend/tests/crop.test.mjs mobile_backend/tests/isbn.test.mjs
       - run: python -m playwright install --with-deps chromium webkit
       - run: python -m mobile_backend.tests.browser_smoke
-      - run: docker build -t papierbib-mobile:0.2.0 mobile_backend
+      - run: python -m mobile_backend.tests.recognition_smoke
+      - run: docker build -t papierbib-mobile:0.3.0 mobile_backend
       - run: docker compose -p papierbib-phase1-test -f mobile_backend/docker-compose.yml -f mobile_backend/tests/compose.smoke.yml up -d --no-build
       - run: python -m mobile_backend.tests.container_smoke
       - if: always()

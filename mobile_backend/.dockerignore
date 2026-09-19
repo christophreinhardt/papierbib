@@ -5,6 +5,10 @@
 !storage.py
 !images.py
 !server.py
+!isbn.py
+!ocr.py
+!lobid.py
+!records.py
 !web/
 !web/**
 !tools/

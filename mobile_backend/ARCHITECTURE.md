@@ -1,5 +1,37 @@
 # Analyse und Architekturentscheidungen — Phase 1
 
+## Ergänzung: implementierte Phase 2 (0.3.0)
+
+Die folgende Phase-1-Analyse bleibt als ursprüngliche Entscheidung dokumentiert.
+Phase 2 erweitert sie ohne Änderungen am Calibre-Plugin:
+
+- `web/scanner.mjs` und `barcode-worker.js`: ZXing 0.23.0 lokal, begrenzte
+  Bildgröße und Worker-Laufzeit; keine Live-Frames im Netzwerk. Kein CDN.
+- `web/isbn.mjs` / `isbn.py`: identische Prüfziffern-/Normalisierungsregeln,
+  ISBN-10/13-Äquivalenz, keine automatische Ziffernreparatur.
+- `web/recognition.mjs`: bestätigter Crop, Barcode zuerst, OCR nur als Fallback,
+  ISBN-Vorschau vor Katalogsuche, explizite Trefferübernahme und Buchspeicherung.
+- `ocr.py`: Tesseract im Docker-Image, stdin/stdout statt Dateien, 12 s Limit,
+  Rohtext wird verworfen, nur prüfziffergültige ISBNs werden zurückgegeben.
+- `lobid.py`: feste HTTPS-Schnittstelle, exakte ISBN-Varianten, strukturierte
+  Felder, getrennte Autoren/Herausgeber, keine HTML-Auswertung oder Redirects.
+  Gleiche ISBN bei widersprüchlichen Ausgaben ergibt getrennte Vorschläge.
+- `records.py`: validierte editierbare Metadaten, ISBN bleibt bei Ausfall
+  speicherbar. Menschliche Bestätigung ist kein automatischer Match-Score.
+- SQLite Schema 2: additiver `metadata_cache` (24 h), vorhandene
+  `book_records` werden verwendet; Foto-Tabellen und BLOBs unverändert.
+  Datensatz-ID macht wiederholtes Speichern idempotent. Dubletten werden vor
+  dem Anlegen angezeigt; ein weiteres Exemplar erfordert Bestätigung im UI.
+- Mobile Zustände `draft`, `confirmed`, `needs_scan` müssen beim zukünftigen
+  Phase-5-Export explizit auf das Calibre-Projektmodell abgebildet werden.
+  Es wird noch keine direkte Formatkompatibilität behauptet.
+- Bilder ohne Speicherzustimmung existieren nur in Browser- und Server-RAM.
+  Metadaten und erfolgreiche Katalogantworten liegen auf dem Homeserver.
+
+Kein KI-Aufruf in Phase 2. Keine freie Feinrotation, Regalerkennung oder
+Calibre-Export vorgezogen. [Update](PORTAINER-UPDATE.md) und
+[Testbericht Phase 2](TEST_REPORT_PHASE2.md).
+
 ## Bestand
 
 - `papierbibliothek/`: funktionierendes Calibre-Plugin, Qt-UI, Projektmodell

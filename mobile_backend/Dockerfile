@@ -3,9 +3,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*
 RUN groupadd --gid 10001 papierbib && useradd --uid 10001 --gid 10001 --no-create-home papierbib \
     && mkdir /data && chown 10001:10001 /data
-COPY __init__.py config.py storage.py images.py server.py /app/mobile_backend/
+COPY __init__.py config.py storage.py images.py server.py isbn.py ocr.py lobid.py records.py /app/mobile_backend/
 COPY web /app/mobile_backend/web
 COPY tools/make_icons.py /app/make_icons.py
 RUN python /app/make_icons.py /app/mobile_backend/web

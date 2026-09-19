@@ -1,15 +1,19 @@
-# Papierbibliothek mobil — selbst gehostet, Version 0.2.0
+# Papierbibliothek mobil — selbst gehostet, Version 0.3.0
 
-Phase 1 ist eine eigenständige Foto-/Projektverwaltung mit iPhone-Oberfläche.
+Phase 2 ergänzt die Foto-/Projektverwaltung um lokale Barcode-Erkennung,
+ISBN-only-OCR, lobid-Abgleich und manuell geprüfte Buchdatensätze.
+
+**Bestehende Installation aktualisieren:** [Portainer-/Cloudflare-Update](PORTAINER-UPDATE.md).
 Der Container liefert Web-App und API unter **derselben Adresse** aus.
 Es gibt keine Backend-URL und kein API-Token-Feld mehr im Browser.
 
 Enthalten: Anmeldung, Projekte, Rückkamera und native Fotoaufnahme, Drehen,
 Zoomen, manuelles Zuschneiden, Originalspeicherung, Zuschnitt-Versionen,
-SQLite-Persistenz und eine offline ladbare Oberfläche.
+SQLite-Persistenz, eine offline ladbare Oberfläche, lokale Barcode-Worker,
+ISBN-Prüfziffern, Tesseract im Homeserver und eine editierbare Trefferprüfung.
 
-**Noch nicht enthalten:** Barcode, OCR, KI, lobid und Calibre-Export im neuen
-Dienst. Diese Funktionen folgen in Phase 2–5. Die alte Anwendung bleibt im
+**Noch nicht enthalten:** KI für Titel/Autor, Regaltrennung, freie Feinrotation
+und Calibre-Export im neuen Dienst. KI/Regaltrennung/Export folgen in Phase 3–5. Die alte Anwendung bleibt im
 Quellcode erhalten; sie ist kein Teil des neuen Container-Images.
 
 ## Wechsel von Version 0.1.0
@@ -58,7 +62,7 @@ Environment verwalten, nicht einen Swarm.
    curl http://127.0.0.1:8888/api/health
    ```
 
-   Erwartet: `{"ok":true,"version":"0.2.0","phase":1}`.
+   Erwartet: `{"ok":true,"version":"0.3.0","phase":2}`.
 5. Tailscale auf Mac und iPhone mit demselben Tailnet verbinden.
    Auf dem Mac (mit verfügbarer Tailscale-CLI):
 
@@ -85,12 +89,13 @@ Auf dem OrbStack-Mac explizit mit demselben Image-Namen bauen:
 ```sh
 git clone https://github.com/christophreinhardt/papierbib.git
 cd papierbib
-docker build -t papierbib-mobile:0.2.0 mobile_backend
+docker build -t papierbib-mobile:0.3.0 mobile_backend
 ```
 
 In einem Portainer-Webeditor-Stack den Inhalt von
 `mobile_backend/docker-compose.yml` verwenden und **nur `build: .` entfernen**.
-`image: papierbib-mobile:0.2.0` bleibt stehen. Das Image muss auf demselben
+`image: papierbib-mobile:0.3.0` bleibt stehen; darunter `pull_policy: never`
+ergänzen und beim Update **Re-pull image ausschalten**. Das Image muss auf demselben
 Docker-Environment liegen, das Portainer verwaltet. Beim nächsten Update erst
 `git pull --ff-only`, erneut bauen und den Stack neu bereitstellen.
 
@@ -142,6 +147,25 @@ nur im Arbeitsspeicher des Tabs und geht beim Schließen/Neuladen verloren.
 Offline funktionieren Oberfläche, Fotoauswahl und Editor; Serverprojekte und
 Speichern benötigen die Verbindung. Kein stilles Zwischenspeichern privater Bilder.
 
+## ISBN-Erkennung und Prüfung
+
+- Live-Kamera bei Aufnahmeart ISBN / Barcode: gültige Buch-ISBN stoppt die Kamera
+  und startet die lobid-Suche. Kein Live-Frame verlässt das iPhone.
+- Foto: zuerst manuell den ISBN-Bereich zuschneiden, dann **Ausschnitt bestätigen
+  und ISBN erkennen**. Barcode zuerst, ISBN-only-OCR als Fallback. Nur der
+  Ausschnitt wird temporär im Homeserver verarbeitet. Kein Speicherhäkchen nötig.
+- Nummer prüfen, **Bei lobid suchen**, einen Treffer ausdrücklich übernehmen,
+  korrigieren und **Speichern und bestätigen** oder **Als Entwurf speichern**.
+- Eine gültige ISBN bleibt auch ohne Online-Treffer speicherbar. Autoren und
+  Herausgeber sind getrennt. Unterschiedliche Auflagen werden nicht vermischt.
+- **Nächstes Buch** beginnt einen neuen Datensatz. Bereits vorhandene ISBNs
+  führen zu einer Warnung; dasselbe geöffnete Buch wird beim Speichern aktualisiert.
+- Metadaten stehen unter **Erfasste Bücher**, Fotos separat unter **Gespeicherte
+  Fotos**. Noch kein Import dieser Datensätze in Calibre (Phase 5).
+
+Eine öffentliche Referenz-ISBN für einen Funktionstest: `0256018243`
+(`9780256018240`, Labor economics). Externe Verfügbarkeit ist nicht garantiert.
+
 ## Anmeldung und Datenschutz
 
 - Ein privater Haushalt / eine gemeinsame Bibliothek, keine Mehrbenutzerrechte.
@@ -158,7 +182,12 @@ Speichern benötigen die Verbindung. Kein stilles Zwischenspeichern privater Bil
 - Bild-Uploads vor dem Decoder auf Größe begrenzt; 30 s Empfangszeitlimit,
   45 s Browserzeitlimit. Ein Bilddecoder gleichzeitig, ein Uvicorn-Worker.
 - Keine Request-Access-Logs, keine Bilder/Secrets in Anwendungslogs.
-- Keine CDNs, Telemetrie, KI- oder Katalogaufrufe in Phase 1.
+- Keine CDNs, Telemetrie oder KI-Aufrufe. Nur ISBNs gehen bei Suchvorgängen
+  an lobid. Keine Bilder an externe Anbieter; OCR ausschließlich im Homeserver.
+- Lokaler ZXing-Worker (Apache-2.0); Tesseract über stdin/stdout, 12 s Prozesslimit,
+  ein Decoder gleichzeitig, zehn OCR-Anfragen pro Minute.
+- lobid: feste HTTPS-Adresse, keine Weiterleitungen, 12 s Netzwerkzeitlimit,
+  begrenzte JSON-Antwort, 30 Anfragen pro Minute, 24 h SQLite-Cache.
 - Originale können EXIF/GPS-Daten enthalten und bleiben bewusst unverändert.
   Zuschnitte enthalten keine EXIF-Metadaten.
 - Serverdaten sind nicht zusätzlich verschlüsselt: Homeserver und Backups absichern.
@@ -168,6 +197,9 @@ Speichern benötigen die Verbindung. Kein stilles Zwischenspeichern privater Bil
 
 Das benannte Compose-Volume `<stackname>_papierbib_data` enthält die SQLite-Datei
 `/data/papierbib.sqlite3` mit Projekten, Originalen, Zuschnitten und Sitzungen.
+Buchdatensätze und lobid-Cache liegen ebenfalls in SQLite. Schema 1 wird beim
+Start additiv auf Schema 2 erweitert; vorher ein Backup erstellen. Ein Downgrade
+auf 0.2.0 verlangt eine alte Sicherung.
 Original und erster Zuschnitt werden in einer Transaktion geschrieben.
 Weitere Zuschnitte bleiben versioniert. Ein Container-Neustart oder Rebuild
 erhält die Daten, sofern derselbe Stack-/Volumename verwendet wird.
@@ -199,10 +231,11 @@ source mobile_backend/.venv/bin/activate
 pip install -r mobile_backend/requirements-dev.txt
 python mobile_backend/tools/make_icons.py mobile_backend/web
 python -m unittest discover -s mobile_backend/tests -v
-node --test mobile_backend/tests/crop.test.mjs
+node --test mobile_backend/tests/crop.test.mjs mobile_backend/tests/isbn.test.mjs
 python -m playwright install chromium webkit
 python -m mobile_backend.tests.browser_smoke
-docker build -t papierbib-mobile:0.2.0 mobile_backend
+python -m mobile_backend.tests.recognition_smoke
+docker build -t papierbib-mobile:0.3.0 mobile_backend
 ```
 
 Die Browsertests erzeugen synthetische Testbilder und eine temporäre Datenbank.
@@ -224,8 +257,10 @@ uvicorn mobile_backend.server:create_app --factory --host 127.0.0.1 --port 8080 
 ## Architektur und weitere Phasen
 
 Siehe [ARCHITECTURE.md](ARCHITECTURE.md) für Analyse, Datenmodell,
-Calibre-Mapping und Risiken. Teststand: [TEST_REPORT.md](TEST_REPORT.md).
+Calibre-Mapping und Risiken. Aktueller Teststand:
+[TEST_REPORT_PHASE2.md](TEST_REPORT_PHASE2.md); vorheriger Stand:
+[TEST_REPORT.md](TEST_REPORT.md).
 
-Offen: Barcode/ISBN-OCR/lobid (Phase 2), sichere neue KI-Adapter (Phase 3),
+Offen: sichere neue KI-Adapter (Phase 3),
 Regalfoto-Trennung/Mehrfachrahmen (Phase 4), vollständige Projektpakete für
 Calibre und Migration alter mobiler Exporte (Phase 5).

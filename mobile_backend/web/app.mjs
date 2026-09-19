@@ -1,6 +1,9 @@
 import {CropEditor, fullBox} from './crop.mjs';
+import {Recognition} from './recognition.mjs';
+import {BarcodeScanner} from './scanner.mjs';
 const $=id=>document.getElementById(id);
-const state={blob:null,url:null,photoId:null,stream:null,dirty:false,busy:false,project:''};
+const state={blob:null,url:null,photoId:null,cropId:null,stream:null,dirty:false,busy:false,project:'',scanEpoch:0};
+const liveScanner=new BarcodeScanner();
 function message(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);}
 function network(){ $('offline').hidden=navigator.onLine; }
 async function api(path,{method='GET',body,headers={}}={}){
@@ -31,12 +34,14 @@ function action(id,fn,event='click'){
     try{await fn(e);}catch(error){message(error.message,true);}
   });
 }
-function mayReplace(){return !state.dirty || confirm('Die ungespeicherte Aufnahme bzw. Änderung verwerfen?');}
+function mayReplace(){return (!state.dirty || confirm('Die ungespeicherte Aufnahme bzw. Änderung verwerfen?'))&&recognition.mayReplace();}
 function stopCamera(){
+  state.scanEpoch++;liveScanner.stop();
   state.stream?.getTracks().forEach(t=>t.stop());state.stream=null;
   $('video').srcObject=null;$('video').hidden=true;$('shoot').disabled=true;$('stop').disabled=true;$('camera').disabled=false;
 }
 async function camera(){
+  if(!recognition.mayReplace())return;
   if(!navigator.mediaDevices?.getUserMedia)throw new Error('Die Kamera benötigt Safari und HTTPS. Alternativ „iPhone-Kamera / Foto“ verwenden.');
   stopCamera();
   state.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:4096},height:{ideal:3072}}});
@@ -49,11 +54,30 @@ async function camera(){
   $('shoot').disabled=false;$('stop').disabled=false;$('camera').disabled=true;
   const settings=track.getSettings();
   $('resolution').textContent='Live-Kamera: '+(settings.width||'?')+' × '+(settings.height||'?')+' Pixel. Native Fotoaufnahme über „iPhone-Kamera / Foto“.';
+  if($('kind').value==='isbn')scanLive(state.scanEpoch);
+}
+async function scanLive(epoch){
+  if(epoch!==state.scanEpoch||!state.stream||$('kind').value!=='isbn')return;
+  try{
+    const isbn=state.busy?null:await liveScanner.decode($('video'));
+    if(epoch!==state.scanEpoch)return;
+    if(isbn){
+      stopCamera();state.busy=true;recognition.busy=true;$('reviewPanel').inert=true;
+      try{await recognition.accept(isbn,true);}finally{state.busy=false;recognition.busy=false;$('reviewPanel').inert=false;}
+      return;
+    }
+  }catch(error){message(error.message,true);return;}
+  setTimeout(()=>scanLive(epoch),500);
 }
 const editor=new CropEditor($('editor'),$('cropPreview'),(spec,size)=>{
   for(const [id,key] of [['cropX','x'],['cropY','y'],['cropW','width'],['cropH','height']])$(id).value=(spec[key]*100).toFixed(1);
   $('cropSize').textContent='Zuschnitt ca. '+size.width+' × '+size.height+' Pixel · Drehung '+spec.rotation+'°';
   state.dirty=true;
+  state.cropId=null;
+});
+const recognition=new Recognition({api,json,notify:message,project:()=>state.project,
+  crop:()=>editor.capture(),context:()=>({photo_id:state.photoId,crop_id:state.cropId}),stopCamera,
+  lock:value=>{state.busy=value;$('editorPanel').inert=value;},isLocked:()=>state.busy
 });
 async function loadBlob(blob,photoId=null,spec={rotation:0,...fullBox()}){
   if(blob.size>20*1024*1024)throw new Error('Bitte ein Foto bis 20 MiB wählen.');
@@ -63,6 +87,7 @@ async function loadBlob(blob,photoId=null,spec={rotation:0,...fullBox()}){
   if(img.naturalWidth*img.naturalHeight>50000000){URL.revokeObjectURL(url);throw new Error('Maximal 50 Megapixel pro Foto.');}
   if(state.url)URL.revokeObjectURL(state.url);
   state.blob=blob;state.url=url;state.photoId=photoId;
+  state.cropId=null;
   $('editorPanel').hidden=false;$('persist').checked=false;$('zoom').value=1;$('editor').style.width='100%';
   editor.load(img,spec);state.dirty=!photoId;
   $('save').textContent=photoId?'Neue Zuschnitt-Version speichern':'Original und Zuschnitt speichern';
@@ -82,6 +107,7 @@ async function shoot(){
 function discard(){
   if(state.url)URL.revokeObjectURL(state.url);
   state.blob=null;state.url=null;state.photoId=null;state.dirty=false;
+  state.cropId=null;
   editor.image=null;editor.base=null;$('editor').width=1;$('cropPreview').width=1;
   $('editorPanel').hidden=true;$('persist').checked=false;
 }
@@ -90,7 +116,7 @@ async function projects(){
   $('projects').replaceChildren(new Option('Projekt wählen',''));
   for(const row of rows)$('projects').add(new Option(row.name,row.project_id));
   state.project=rows.some(x=>x.project_id===previous)?previous:(rows[0]?.project_id||'');
-  $('projects').value=state.project;await gallery();
+  $('projects').value=state.project;await gallery();await recognition.refresh();
 }
 async function gallery(){
   const container=$('gallery');
@@ -113,6 +139,7 @@ async function gallery(){
         const blob=await (await api('/api/captures/'+photo.photo_id+'/original')).blob();
         $('kind').value=photo.capture_type;
         await loadBlob(blob,photo.photo_id,photo.crops.find(c=>c.crop_id===versions.value).transform);
+        state.cropId=versions.value;
       }catch(error){message(error.message,true);}
     };
     article.append(img,info,versions,button);container.append(article);
@@ -129,9 +156,9 @@ async function save(){
     const response=state.photoId
       ? await json('/api/captures/'+state.photoId+'/crops',spec)
       : await api('/api/projects/'+state.project+'/captures?'+new URLSearchParams({...spec,kind:$('kind').value,store_images:'true'}),{method:'POST',body:state.blob,headers:{'Content-Type':state.blob.type}});
-    const saved=await response.json();state.photoId=saved.photo_id;state.dirty=false;$('persist').checked=false;
+    const saved=await response.json();state.photoId=saved.photo_id;state.cropId=saved.crop_id;state.dirty=false;$('persist').checked=false;
     $('save').textContent='Neue Zuschnitt-Version speichern';
-    await gallery();message('Gespeichert. Das Original bleibt erhalten; Zuschnitt als eigene Version gesichert.');
+    await gallery();message('Gespeichert. Weiter mit „Ausschnitt bestätigen und ISBN erkennen“. Titel-/Autor-KI folgt in Phase 3.');
   }finally{state.busy=false;$('save').disabled=false;$('editorPanel').inert=false;}
 }
 action('loginForm',async()=>{
@@ -141,22 +168,23 @@ action('loginForm',async()=>{
 },'submit');
 action('logout',async()=>{
   if(!mayReplace())return;
-  await json('/api/logout',{});stopCamera();discard();state.project='';
+  await json('/api/logout',{});stopCamera();discard();recognition.reset();state.project='';$('books').replaceChildren();
   $('gallery').replaceChildren();$('projects').replaceChildren(new Option('Bitte anmelden',''));
   $('loginPanel').hidden=false;$('logout').hidden=true;message('Abgemeldet.');
 });
 action('projectForm',async()=>{
   const created=await (await json('/api/projects',{name:$('projectName').value})).json();
-  if(state.dirty){message('Projekt angelegt. Zum Wechseln zuerst die aktuelle Aufnahme speichern.');return;}
-  discard();state.project=created.project_id;$('projectName').value='';await projects();message('Projekt angelegt.');
+  if(state.dirty||recognition.dirty){message('Projekt angelegt. Zum Wechseln zuerst die aktuelle Aufnahme und Metadaten speichern.');return;}
+  discard();recognition.reset();state.project=created.project_id;$('projectName').value='';await projects();message('Projekt angelegt.');
 },'submit');
 action('projects',async()=>{
   if(!mayReplace()){$('projects').value=state.project;return;}
-  discard();state.project=$('projects').value;await gallery();
+  discard();recognition.reset();state.project=$('projects').value;await gallery();await recognition.refresh();
 },'change');
 action('camera',camera);action('shoot',shoot);action('stop',stopCamera);action('save',save);
 action('discard',()=>{if(mayReplace()){discard();message('Ungespeicherte Aufnahme verworfen.');}});
-action('refresh',gallery);
+action('refresh',async()=>{await gallery();await recognition.refresh();});
+action('kind',stopCamera,'change');
 for(const id of ['file','nativeCamera'])action(id,async()=>{
   const file=$(id).files[0];$(id).value='';
   if(file && mayReplace()){stopCamera();await loadBlob(file);}
@@ -168,7 +196,7 @@ for(const id of ['cropX','cropY','cropW','cropH'])action(id,()=>{
 },'change');
 window.addEventListener('pagehide',stopCamera);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera();});
-window.addEventListener('beforeunload',event=>{if(state.dirty){event.preventDefault();event.returnValue='';}});
+window.addEventListener('beforeunload',event=>{if(state.dirty||recognition.dirty){event.preventDefault();event.returnValue='';}});
 window.addEventListener('online',network);window.addEventListener('offline',network);network();
 async function initialize(){
   try{await api('/api/session');$('loginPanel').hidden=true;$('logout').hidden=false;await projects();}
@@ -183,12 +211,12 @@ async function initialize(){
       changed();reg.addEventListener('updatefound',()=>reg.installing?.addEventListener('statechange',changed));
       action('update',()=>{
         if(!mayReplace())return;
-        state.dirty=false;
+        state.dirty=false;recognition.dirty=false;
         if(reg.waiting)reg.waiting.postMessage('activate');
         else location.reload();
       });
       const hadController=Boolean(navigator.serviceWorker.controller);
-      navigator.serviceWorker.addEventListener('controllerchange',()=>{if(hadController && !state.dirty)location.reload();});
+      navigator.serviceWorker.addEventListener('controllerchange',()=>{if(hadController && !state.dirty && !recognition.dirty)location.reload();});
     }catch{message('Offline-Oberfläche konnte nicht installiert werden. Online-Nutzung ist möglich.');}
   }
 }

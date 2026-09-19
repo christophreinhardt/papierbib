@@ -31,7 +31,7 @@ class Store:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 1):
+            if version not in (0, 1, 2):
                 raise RuntimeError('Unbekannte Datenbankversion; Dienst nicht gestartet.')
             db.execute('PRAGMA journal_mode=WAL')
             db.executescript("""
@@ -56,7 +56,9 @@ class Store:
                     digest TEXT PRIMARY KEY, expires REAL NOT NULL, credential TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS rate_limits (
                     bucket TEXT PRIMARY KEY, start REAL NOT NULL, hits INTEGER NOT NULL);
-                PRAGMA user_version=1;
+                CREATE TABLE IF NOT EXISTS metadata_cache (
+                    isbn TEXT PRIMARY KEY, payload TEXT NOT NULL, expires REAL NOT NULL);
+                PRAGMA user_version=2;
             """)
 
     def throttle(self, bucket, maximum, seconds):
@@ -155,3 +157,44 @@ class Store:
         with self.connect() as db:
             row = db.execute('SELECT image FROM crops WHERE crop_id=?', (crop_id,)).fetchone()
             return bytes(row[0]) if row else None
+
+    def cached_metadata(self, isbn):
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM metadata_cache WHERE isbn=? AND expires>?', (isbn, time.time())).fetchone()
+            return json.loads(row[0]) if row else None
+
+    def cache_metadata(self, isbn, records):
+        with self.connect() as db:
+            db.execute('DELETE FROM metadata_cache WHERE expires<?', (time.time(),))
+            db.execute('INSERT OR REPLACE INTO metadata_cache VALUES (?,?,?)',
+                       (isbn, json.dumps(records, ensure_ascii=False), time.time()+86400))
+
+    def books(self, project_id):
+        with self.connect() as db:
+            return [dict(json.loads(row['metadata_json']), book_id=row['book_id'], status=row['status'],
+                         photo_id=row['photo_id'], crop_id=row['crop_id'])
+                    for row in db.execute('SELECT * FROM book_records WHERE project_id=? ORDER BY created_at DESC', (project_id,))]
+
+    def save_book(self, project_id, book):
+        data = book.model_dump(mode='json')
+        book_id, photo, crop = data.pop('book_id'), data.pop('photo_id'), data.pop('crop_id')
+        status = data.pop('status')
+        from .isbn import isbn10
+        data.update(isbn10=isbn10(data['isbn13']), updated_at=now(), source='lobid-resources' if data['source_url'] else 'manual')
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            existing = db.execute('SELECT project_id FROM book_records WHERE book_id=?', (book_id,)).fetchone()
+            if existing and existing[0] != project_id:
+                raise ValueError('Datensatz gehört zu einem anderen Projekt.')
+            if photo and not db.execute('SELECT 1 FROM captures WHERE photo_id=? AND project_id=?', (photo, project_id)).fetchone():
+                raise ValueError('Foto gehört nicht zum Projekt.')
+            if crop and not db.execute('SELECT 1 FROM crops WHERE crop_id=? AND photo_id=?', (crop, photo)).fetchone():
+                raise ValueError('Zuschnitt gehört nicht zum Foto.')
+            # Same book_id is idempotent; a distinct copy is an explicit user decision.
+            duplicates = [row['book_id'] for row in db.execute('SELECT book_id,metadata_json FROM book_records WHERE project_id=? AND book_id<>?', (project_id, book_id))
+                          if json.loads(row['metadata_json']).get('isbn13') == data['isbn13']]
+            db.execute('INSERT INTO book_records VALUES (?,?,?,?,?,?,?) ON CONFLICT(book_id) DO UPDATE SET '
+                       'photo_id=excluded.photo_id,crop_id=excluded.crop_id,status=excluded.status,metadata_json=excluded.metadata_json',
+                       (book_id, project_id, photo, crop, status, json.dumps(data, ensure_ascii=False), now()))
+            db.execute('UPDATE projects SET updated_at=? WHERE project_id=?', (now(), project_id))
+        return dict(book_id=book_id, duplicate_ids=duplicates)

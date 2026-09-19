@@ -37,6 +37,17 @@ export class CropEditor {
   reset() { this.rotation=0; this.box=fullBox(); this.rebuild(); }
   setBox(box) { this.box=constrain(box); this.draw(); }
   spec() { return {rotation:this.rotation,...this.box}; }
+  capture() {
+    if(!this.base)throw new Error('Zuerst ein Foto aufnehmen und den ISBN-Bereich zuschneiden.');
+    // Derive from full-resolution original, not the reduced editor preview.
+    const b=this.box,size=rotatedSize(this.image.naturalWidth,this.image.naturalHeight,this.rotation),c=document.createElement('canvas');
+    const scale=Math.min(1,3200/Math.max(b.width*size.width,b.height*size.height));
+    c.width=Math.max(8,Math.round(b.width*size.width*scale));c.height=Math.max(8,Math.round(b.height*size.height*scale));
+    const ctx=c.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,c.width,c.height);
+    ctx.scale(scale,scale);ctx.translate(size.width/2-b.x*size.width,size.height/2-b.y*size.height);
+    ctx.rotate(this.rotation*Math.PI/180);ctx.drawImage(this.image,-this.image.naturalWidth/2,-this.image.naturalHeight/2);
+    return c;
+  }
   point(event) {
     const r=this.canvas.getBoundingClientRect();
     return {x:clamp((event.clientX-r.left)/r.width,0,1),y:clamp((event.clientY-r.top)/r.height,0,1)};

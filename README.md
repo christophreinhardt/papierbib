@@ -1,11 +1,13 @@
 # Papierbibliothek – Calibre-Plugin mit Kamera-Schnellerfassung
 
-Die neue mobile Erfassung läuft als **selbst gehostete PWA (0.2.0, Phase 1)**
+Die neue mobile Erfassung läuft als **selbst gehostete PWA (0.3.0, Phase 2)**
 auf dem Homeserver. [Portainer-/OrbStack-Anleitung](mobile_backend/README.md) und
 [Architektur/Phasenplan](mobile_backend/ARCHITECTURE.md).
 Der GitHub-Pages-Prototyp unter `mobile_web/` bleibt als Altbestand erhalten.
-Die neue PWA umfasst zunächst Projekte, Kamera, Drehung und Zuschnitt; KI,
-Barcode/OCR, lobid und Calibre-Übergabe folgen in den nächsten Phasen.
+Die PWA umfasst Projekte, Kamera, Zuschnitt, lokale Barcode-Erkennung,
+ISBN-only-OCR, lobid und geprüfte Buchdatensätze. [Update bestehender Portainer-
+und Cloudflare-Installationen](mobile_backend/PORTAINER-UPDATE.md).
+KI, Regaltrennung und Calibre-Übergabe folgen in den nächsten Phasen.
 
 Papierbücher anhand eigener Regalfotos oder direkt per Kamera erfassen und nach Prüfung in Calibre übernehmen. Version **0.6.11** verwendet für Kameraaufnahmen automatisch das größte von der Kamera gemeldete Videoformat und speichert lokale Titelblattzuschnitte in voller Auflösung. Titelblattaufnahme, Drehung, Zuschnitt, Mehrfachlöschung und ausdrücklich bestätigte KI-Auswertung bleiben verfügbar. Keine zusätzlichen Python-Pakete erforderlich.
 
