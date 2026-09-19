@@ -10,6 +10,7 @@
 !lobid.py
 !records.py
 !vision.py
+!exporter.py
 !web/
 !web/**
 !tools/

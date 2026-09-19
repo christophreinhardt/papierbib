@@ -41,7 +41,8 @@ def main():
             with sync_playwright() as p:
                 for engine in ('chromium','webkit'):
                     browser=getattr(p,engine).launch(headless=True)
-                    context=browser.new_context(**p.devices['iPhone 13'],service_workers='allow')
+                    device={**p.devices['iPhone 13'],'viewport':{'width':320,'height':568},'screen':{'width':320,'height':568}}
+                    context=browser.new_context(**device,service_workers='allow')
                     page=context.new_page()
                     errors=[];uploads=[]
                     page.on('pageerror',lambda e: errors.append(str(e)))
@@ -51,9 +52,12 @@ def main():
                     page.locator('#loginForm button').click()
                     expect(page.locator('#loginPanel')).to_be_hidden()
                     assert 'papierbib_session' not in page.evaluate('document.cookie')
+                    page.locator('#menuButton').click()
+                    expect(page.locator('#appMenu')).to_be_visible()
                     page.locator('#projectName').fill('Browsertest '+engine)
                     page.locator('#projectForm button').click()
                     expect(page.locator('#status')).to_have_text('Projekt angelegt.')
+                    assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
                     page.locator('#file').set_input_files({'name':'test.jpg','mimeType':'image/jpeg','buffer':data.getvalue()})
                     expect(page.locator('#editorPanel')).to_be_visible()
                     assert not uploads, 'Foto vor Zustimmung hochgeladen'

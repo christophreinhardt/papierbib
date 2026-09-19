@@ -4,15 +4,15 @@ const $=id=>document.getElementById(id);
 const fields=['title','subtitle','authors','editors','publisher','publication_year','language','edition','extent','publication_place','notes'];
 
 export class Recognition {
-  constructor({api,json,notify,project,crop,context,stopCamera,lock,isLocked,kind}){
-    Object.assign(this,{api,json,notify,project,crop,context,stopCamera,lock,isLocked,kind});
+  constructor({api,json,notify,project,crop,context,stopCamera,lock,isLocked,kind,onNewBook}){
+    Object.assign(this,{api,json,notify,project,crop,context,stopCamera,lock,isLocked,kind,onNewBook});
     this.scanner=new BarcodeScanner();this.dirty=false;this.busy=false;this.record={};this.vision=null;this.bookId=crypto.randomUUID();this.link={};
     this.bind('recognize',()=>this.recognize());
     this.bind('lookup',()=>this.lookup());
     this.bind('confirmBook',()=>this.save('confirmed'));
     this.bind('draftBook',()=>this.save('draft'));
     this.bind('rescanBook',()=>this.save('needs_scan'));
-    this.bind('newBook',()=>{if(this.mayReplace())this.reset();});
+    this.bind('newBook',async()=>{if(this.mayReplace()){this.reset();await this.onNewBook?.();}});
     this.bind('visionAnalyze',()=>this.analyzeVision());
     $('bookIsbn').addEventListener('input',()=>{
       this.dirty=true;this.record={};$('matches').replaceChildren();
@@ -53,6 +53,7 @@ export class Recognition {
   kindChanged(){
     const compatible=['spine','titlepage'].includes(this.kind());
     $('visionMenu').hidden=!compatible;
+    $('visionPanel').hidden=!compatible;$('isbnAction').hidden=this.kind()!=='isbn';
     $('visionAnalyze').disabled=!compatible || !$('visionProvider').value;
     if(compatible)$('visionInfo').textContent=$('visionProvider').value
       ? 'KI-Anbieter auswählen, Foto zuschneiden und anschließend kostenpflichtig auswerten.'

@@ -42,7 +42,8 @@ Die bestehende Phase 2 umfasst:
 
 Kein KI-Aufruf in Phase 2. Die Fehlerbehebung 0.3.1 ergänzt freie Drehung
 in 0,5°-Schritten sowie native/ZXing-Barcodevarianten und mehrstufige
-ISBN-OCR. Regalerkennung oder Calibre-Export bleiben offen. [Update](PORTAINER-UPDATE.md) und
+ISBN-OCR. Regalerkennung und ein Exportpaket einschließlich Fotos bleiben offen;
+der Metadatenexport als Schema-5-Projekt ist implementiert. [Update](PORTAINER-UPDATE.md) und
 [Testbericht Phase 2](TEST_REPORT_PHASE2.md).
 
 ## Bestand
@@ -106,8 +107,8 @@ vergrößern die DB; spätere Auslagerung in Dateispeicher benötigt eine Migrat
 Koordinaten gelten nach EXIF-Ausrichtung und anschließend der expliziten
 Drehung im Uhrzeigersinn. Boxwerte liegen zwischen 0 und 1 und beziehen sich
 auf das gedrehte Bild. Jeder Crop wird aus dem unveränderten Original erzeugt.
-Nach Drehen wird der Rahmen auf das ganze gedrehte Bild zurückgesetzt.
-Zoomen betrifft nur die Editoransicht.
+Beim Drehen bleiben die normierten Rahmenkoordinaten erhalten. Zoomen betrifft
+nur die Editoransicht.
 
 ## Vorgesehene Calibre-Übergabe (Phase 5)
 

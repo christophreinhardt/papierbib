@@ -2,7 +2,7 @@ import {CropEditor, fullBox} from './crop.mjs';
 import {Recognition} from './recognition.mjs';
 import {BarcodeScanner} from './scanner.mjs';
 const $=id=>document.getElementById(id);
-const state={blob:null,url:null,photoId:null,cropId:null,stream:null,dirty:false,busy:false,project:'',scanEpoch:0};
+const state={blob:null,url:null,photoId:null,cropId:null,stream:null,dirty:false,busy:false,project:'',scanEpoch:0,shutterTimer:null};
 const liveScanner=new BarcodeScanner();
 function message(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);}
 function network(){ $('offline').hidden=navigator.onLine; }
@@ -37,8 +37,10 @@ function action(id,fn,event='click'){
 function mayReplace(){return (!state.dirty || confirm('Die ungespeicherte Aufnahme bzw. Änderung verwerfen?'))&&recognition.mayReplace();}
 function stopCamera(){
   state.scanEpoch++;liveScanner.stop();
+  clearTimeout(state.shutterTimer);state.shutterTimer=null;
   state.stream?.getTracks().forEach(t=>t.stop());state.stream=null;
-  $('video').srcObject=null;$('video').hidden=true;$('shoot').disabled=true;$('stop').disabled=true;$('camera').disabled=false;
+  $('video').srcObject=null;$('cameraFrame').hidden=true;$('shoot').hidden=true;$('shoot').disabled=true;
+  $('stop').disabled=true;$('camera').disabled=false;
 }
 async function camera(){
   if(!recognition.mayReplace())return;
@@ -49,12 +51,26 @@ async function camera(){
   if(caps?.width?.max && caps?.height?.max){
     try{await track.applyConstraints({width:{ideal:caps.width.max},height:{ideal:caps.height.max}});}catch{}
   }
-  $('video').srcObject=state.stream;$('video').hidden=false;
+  $('video').srcObject=state.stream;$('cameraFrame').hidden=false;
   try{await $('video').play();}catch(error){stopCamera();throw error;}
   $('shoot').disabled=false;$('stop').disabled=false;$('camera').disabled=true;
   const settings=track.getSettings();
   $('resolution').textContent='Live-Kamera: '+(settings.width||'?')+' × '+(settings.height||'?')+' Pixel. Native Fotoaufnahme über „iPhone-Kamera / Foto“.';
-  if($('kind').value==='isbn')scanLive(state.scanEpoch);
+  if($('kind').value==='isbn'){
+    $('shoot').hidden=true;$('scanHint').hidden=false;$('scanHint').textContent='Barcode wird lokal gesucht …';
+    const epoch=state.scanEpoch;
+    state.shutterTimer=setTimeout(()=>{
+      if(state.stream&&state.scanEpoch===epoch){$('shoot').hidden=false;$('scanHint').textContent='Kein Barcode gefunden – jetzt fotografieren oder weiter scannen.';}
+    },6000);
+    scanLive(epoch);
+  }else{
+    $('shoot').hidden=false;$('scanHint').hidden=true;
+  }
+}
+async function autoCamera(){
+  if(state.stream||!$('loginPanel').hidden)return;
+  try{await camera();}
+  catch(error){message('Kamera nicht automatisch gestartet. Bitte „Kamera starten“ berühren.',false);}
 }
 async function scanLive(epoch){
   if(epoch!==state.scanEpoch||!state.stream||$('kind').value!=='isbn')return;
@@ -82,7 +98,8 @@ const editor=new CropEditor($('editor'),$('cropPreview'),(spec,size)=>{
 });
 const recognition=new Recognition({api,json,notify:message,project:()=>state.project,
   crop:()=>editor.capture(),context:()=>({photo_id:state.photoId,crop_id:state.cropId}),stopCamera,
-  lock:value=>{state.busy=value;$('editorPanel').inert=value;},isLocked:()=>state.busy,kind:()=>$('kind').value
+  lock:value=>{state.busy=value;$('editorPanel').inert=value;},isLocked:()=>state.busy,kind:()=>$('kind').value,
+  onNewBook:async()=>{discard();await autoCamera();}
 });
 async function loadBlob(blob,photoId=null,spec={rotation:0,...fullBox()}){
   if(blob.size>20*1024*1024)throw new Error('Bitte ein Foto bis 20 MiB wählen.');
@@ -121,7 +138,24 @@ async function projects(){
   $('projects').replaceChildren(new Option('Projekt wählen',''));
   for(const row of rows)$('projects').add(new Option(row.name,row.project_id));
   state.project=rows.some(x=>x.project_id===previous)?previous:(rows[0]?.project_id||'');
-  $('projects').value=state.project;await gallery();await recognition.refresh();
+  $('projects').value=state.project;
+  $('activeProject').textContent=state.project?$('projects').selectedOptions[0].textContent:'Kein Projekt';
+  $('exportCalibre').disabled=$('exportCsv').disabled=!state.project;
+  await gallery();await recognition.refresh();
+}
+async function downloadExport(kind){
+  if(!state.project)throw new Error('Bitte zuerst im Menü ein Projekt wählen.');
+  const calibre=kind==='calibre',filename=calibre?'projekt.json':'papierbibliothek.csv';
+  const response=await api('/api/projects/'+state.project+'/export/'+kind);
+  const blob=await response.blob(),file=new File([blob],filename,{type:blob.type});
+  if(navigator.share&&navigator.canShare?.({files:[file]})){
+    try{await navigator.share({files:[file],title:calibre?'Papierbibliothek für Calibre':'Papierbibliothek CSV'});}
+    catch(error){if(error.name!=='AbortError')throw error;else return;}
+  }else{
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=filename;
+    document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  message(calibre?'Calibre-Projekt exportiert. Datei als projekt.json in einen eigenen Ordner legen und im Plugin öffnen.':'CSV exportiert.');
 }
 async function gallery(){
   const container=$('gallery');
@@ -169,27 +203,34 @@ async function save(){
 action('loginForm',async()=>{
   const password=$('password').value;$('password').value='';
   await json('/api/login',{password});$('loginPanel').hidden=true;$('logout').hidden=false;
-  await projects();await recognition.visionStatus();message('Angemeldet.');
+  await projects();await recognition.visionStatus();message('Angemeldet. Kamera wird gestartet …');await autoCamera();
 },'submit');
 action('logout',async()=>{
   if(!mayReplace())return;
   await json('/api/logout',{});stopCamera();discard();recognition.reset();state.project='';$('books').replaceChildren();
   $('gallery').replaceChildren();$('projects').replaceChildren(new Option('Bitte anmelden',''));
+  $('activeProject').textContent='Kein Projekt';$('exportCalibre').disabled=$('exportCsv').disabled=true;
   $('loginPanel').hidden=false;$('logout').hidden=true;message('Abgemeldet.');
 });
 action('projectForm',async()=>{
   const created=await (await json('/api/projects',{name:$('projectName').value})).json();
   if(state.dirty||recognition.dirty){message('Projekt angelegt. Zum Wechseln zuerst die aktuelle Aufnahme und Metadaten speichern.');return;}
-  discard();recognition.reset();state.project=created.project_id;$('projectName').value='';await projects();message('Projekt angelegt.');
+  discard();recognition.reset();state.project=created.project_id;$('projectName').value='';await projects();$('appMenu').close();message('Projekt angelegt.');await autoCamera();
 },'submit');
 action('projects',async()=>{
   if(!mayReplace()){$('projects').value=state.project;return;}
-  discard();recognition.reset();state.project=$('projects').value;await gallery();await recognition.refresh();
+  discard();recognition.reset();state.project=$('projects').value;
+  $('activeProject').textContent=state.project?$('projects').selectedOptions[0].textContent:'Kein Projekt';
+  $('exportCalibre').disabled=$('exportCsv').disabled=!state.project;
+  await gallery();await recognition.refresh();$('appMenu').close();await autoCamera();
 },'change');
 action('camera',camera);action('shoot',shoot);action('stop',stopCamera);action('save',save);
+action('menuButton',()=>{$('appMenu').showModal?$('appMenu').showModal():$('appMenu').setAttribute('open','');});
+action('menuClose',()=>{$('appMenu').close?$('appMenu').close():$('appMenu').removeAttribute('open');});
+action('exportCalibre',()=>downloadExport('calibre'));action('exportCsv',()=>downloadExport('csv'));
 action('discard',()=>{if(mayReplace()){discard();message('Ungespeicherte Aufnahme verworfen.');}});
 action('refresh',async()=>{await gallery();await recognition.refresh();});
-action('kind',()=>{stopCamera();recognition.kindChanged();},'change');
+action('kind',async()=>{stopCamera();recognition.kindChanged();await autoCamera();},'change');
 for(const id of ['file','nativeCamera'])action(id,async()=>{
   const file=$(id).files[0];$(id).value='';
   if(file && mayReplace()){stopCamera();await loadBlob(file);}
@@ -205,7 +246,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera(
 window.addEventListener('beforeunload',event=>{if(state.dirty||recognition.dirty){event.preventDefault();event.returnValue='';}});
 window.addEventListener('online',network);window.addEventListener('offline',network);network();
 async function initialize(){
-  try{await api('/api/session');$('loginPanel').hidden=true;$('logout').hidden=false;await projects();await recognition.visionStatus();}
+  try{await api('/api/session');$('loginPanel').hidden=true;$('logout').hidden=false;await projects();await recognition.visionStatus();await autoCamera();}
   catch(error){
     if(error.httpStatus===401)message('Bitte anmelden. Fotos können bereits lokal zugeschnitten werden.');
     else message(error.message,true);

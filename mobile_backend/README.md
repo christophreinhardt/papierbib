@@ -1,4 +1,4 @@
-# Papierbibliothek mobil — selbst gehostet, Version 0.4.0
+# Papierbibliothek mobil — selbst gehostet, Version 0.4.1
 
 Phase 3 ergänzt die Foto-/Projektverwaltung um lokale Barcode-Erkennung,
 ISBN-only-OCR, lobid-Abgleich sowie sichere KI-Auswertung einzelner Buchrücken
@@ -13,8 +13,9 @@ Zoomen, manuelles Zuschneiden, Originalspeicherung, Zuschnitt-Versionen,
 SQLite-Persistenz, eine offline ladbare Oberfläche, lokale Barcode-Worker,
 ISBN-Prüfziffern, Tesseract im Homeserver und eine editierbare Trefferprüfung.
 
-**Noch nicht enthalten:** Regalerkennung und Calibre-Export im neuen Dienst.
-Diese folgen in Phase 4–5. Die alte Anwendung bleibt im
+**Noch nicht enthalten:** automatische Regalerkennung. Der Metadatenexport als
+Schema-5-Projekt für das bestehende Calibre-Plugin und als CSV ist enthalten;
+Bilddateien werden noch nicht in das Exportpaket aufgenommen. Die alte Anwendung bleibt im
 Quellcode erhalten; sie ist kein Teil des neuen Container-Images.
 
 ## Wechsel von Version 0.1.0
@@ -68,7 +69,7 @@ Environment verwalten, nicht einen Swarm.
    curl http://127.0.0.1:8888/api/health
    ```
 
-   Erwartet: `{"ok":true,"version":"0.4.0","phase":3}`.
+   Erwartet: `{"ok":true,"version":"0.4.1","phase":3}`.
 5. Tailscale auf Mac und iPhone mit demselben Tailnet verbinden.
    Auf dem Mac (mit verfügbarer Tailscale-CLI):
 
@@ -95,12 +96,12 @@ Auf dem OrbStack-Mac explizit mit demselben Image-Namen bauen:
 ```sh
 git clone https://github.com/christophreinhardt/papierbib.git
 cd papierbib
-docker build -t papierbib-mobile:0.4.0 mobile_backend
+docker build -t papierbib-mobile:0.4.1 mobile_backend
 ```
 
 In einem Portainer-Webeditor-Stack den Inhalt von
 `mobile_backend/docker-compose.yml` verwenden und **nur `build: .` entfernen**.
-`image: papierbib-mobile:0.4.0` bleibt stehen; darunter `pull_policy: never`
+`image: papierbib-mobile:0.4.1` bleibt stehen; darunter `pull_policy: never`
 ergänzen und beim Update **Re-pull image ausschalten**. Das Image muss auf demselben
 Docker-Environment liegen, das Portainer verwaltet. Beim nächsten Update erst
 `git pull --ff-only`, erneut bauen und den Stack neu bereitstellen.
@@ -173,6 +174,19 @@ Speichern benötigen die Verbindung. Kein stilles Zwischenspeichern privater Bil
 Eine öffentliche Referenz-ISBN für einen Funktionstest: `0256018243`
 (`9780256018240`, Labor economics). Externe Verfügbarkeit ist nicht garantiert.
 
+## Export zum Calibre-Plugin
+
+Im Menü **Projekt & Einstellungen** steht für das aktuelle Projekt **Für Calibre
+exportieren** zur Verfügung. Auf dem iPhone öffnet sich nach Möglichkeit das
+Teilen-Menü; andernfalls wird `projekt.json` heruntergeladen. Die Datei auf den
+Calibre-Rechner übertragen, in einen eigenen Ordner legen und im
+Papierbibliothek-Plugin über **Projekt öffnen** auswählen.
+
+Der Export entspricht Projektschema 5 und enthält die erfassten Buchmetadaten.
+Mobile Bilddateien sind in Version 0.4.1 noch nicht im Exportpaket enthalten;
+die Metadatensätze lassen sich dennoch prüfen und anschließend in Calibre
+importieren. Der separate CSV-Export ist für Tabellen und Kontrollen gedacht.
+
 ## Anmeldung und Datenschutz
 
 - Ein privater Haushalt / eine gemeinsame Bibliothek, keine Mehrbenutzerrechte.
@@ -244,7 +258,7 @@ node --test mobile_backend/tests/crop.test.mjs mobile_backend/tests/isbn.test.mj
 python -m playwright install chromium webkit
 python -m mobile_backend.tests.browser_smoke
 python -m mobile_backend.tests.recognition_smoke
-docker build -t papierbib-mobile:0.4.0 mobile_backend
+docker build -t papierbib-mobile:0.4.1 mobile_backend
 ```
 
 Die Browsertests erzeugen synthetische Testbilder und eine temporäre Datenbank.
@@ -270,5 +284,5 @@ Calibre-Mapping und Risiken. Aktueller Teststand:
 [TEST_REPORT_PHASE3.md](TEST_REPORT_PHASE3.md); vorheriger Stand:
 [TEST_REPORT.md](TEST_REPORT.md).
 
-Offen: Regalfoto-Trennung/Mehrfachrahmen (Phase 4), vollständige Projektpakete für
-Calibre und Migration alter mobiler Exporte (Phase 5).
+Offen: Regalfoto-Trennung/Mehrfachrahmen, Calibre-Projektpakete einschließlich
+Bilddateien und Migration alter mobiler Exporte.

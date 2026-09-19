@@ -18,7 +18,7 @@ from .config import Settings, VERSION
 from .images import CropSpec, InvalidImage, crop_image
 from .storage import Store
 from .records import BookInput, LookupRequest
-from . import lobid, ocr, vision
+from . import exporter, lobid, ocr, vision
 
 COOKIE = 'papierbib_session'
 
@@ -273,6 +273,23 @@ def create_app(settings=None):
         if not store.has_project(project_id):
             raise HTTPException(404, 'Projekt nicht gefunden.')
         return store.books(project_id)
+
+    @app.get('/api/projects/{project_id}/export/calibre')
+    def export_calibre(project_id: str):
+        project = store.project(project_id)
+        if not project:
+            raise HTTPException(404, 'Projekt nicht gefunden.')
+        content = exporter.json_export(project, store.books(project_id))
+        return Response(content, media_type='application/json; charset=utf-8',
+                        headers={'Content-Disposition': 'attachment; filename="projekt.json"'})
+
+    @app.get('/api/projects/{project_id}/export/csv')
+    def export_csv(project_id: str):
+        if not store.has_project(project_id):
+            raise HTTPException(404, 'Projekt nicht gefunden.')
+        content = exporter.csv_export(store.books(project_id))
+        return Response(content, media_type='text/csv; charset=utf-8',
+                        headers={'Content-Disposition': 'attachment; filename="papierbibliothek.csv"'})
 
     @app.post('/api/projects/{project_id}/books')
     def save_book(project_id: str, payload: BookInput):

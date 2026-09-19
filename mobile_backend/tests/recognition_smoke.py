@@ -52,6 +52,7 @@ def main():
                     page.on('request',lambda r:uploads.append(r.url) if r.method=='POST' and '/api/isbn/ocr' in r.url else None)
                     page.goto(origin);page.locator('#password').fill(PASSWORD);page.locator('#loginForm button').click()
                     expect(page.locator('#loginPanel')).to_be_hidden()
+                    page.locator('#menuButton').click();expect(page.locator('#appMenu')).to_be_visible()
                     page.locator('#projectName').fill('Erkennung '+engine);page.locator('#projectForm button').click()
                     expect(page.locator('#status')).to_have_text('Projekt angelegt.')
                     project=page.locator('#projects').input_value()

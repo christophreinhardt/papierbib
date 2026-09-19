@@ -1,6 +1,6 @@
 # Papierbibliothek – Calibre-Plugin mit Kamera-Schnellerfassung
 
-Die neue mobile Erfassung läuft als **selbst gehostete PWA (0.4.0, Phase 3)**
+Die neue mobile Erfassung läuft als **selbst gehostete PWA (0.4.1)**
 auf dem Homeserver. [Portainer-/OrbStack-Anleitung](mobile_backend/README.md) und
 [Architektur/Phasenplan](mobile_backend/ARCHITECTURE.md).
 Der GitHub-Pages-Prototyp unter `mobile_web/` bleibt als Altbestand erhalten.

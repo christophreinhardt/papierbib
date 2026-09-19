@@ -102,6 +102,11 @@ class Store:
         with self.connect() as db:
             return [dict(x) for x in db.execute('SELECT * FROM projects ORDER BY updated_at DESC')]
 
+    def project(self, project_id):
+        with self.connect() as db:
+            row = db.execute('SELECT * FROM projects WHERE project_id=?', (project_id,)).fetchone()
+            return dict(row) if row else None
+
     def create_project(self, name):
         project = dict(project_id=str(uuid4()), name=name, created_at=now(), updated_at=now())
         with self.connect() as db:
@@ -171,9 +176,13 @@ class Store:
 
     def books(self, project_id):
         with self.connect() as db:
-            return [dict(json.loads(row['metadata_json']), book_id=row['book_id'], status=row['status'],
-                         photo_id=row['photo_id'], crop_id=row['crop_id'])
-                    for row in db.execute('SELECT * FROM book_records WHERE project_id=? ORDER BY created_at DESC', (project_id,))]
+            result = []
+            for row in db.execute('SELECT * FROM book_records WHERE project_id=? ORDER BY created_at DESC', (project_id,)):
+                item = json.loads(row['metadata_json'])
+                item.update(book_id=row['book_id'], status=row['status'], photo_id=row['photo_id'],
+                            crop_id=row['crop_id'], created_at=row['created_at'])
+                result.append(item)
+            return result
 
     def save_book(self, project_id, book):
         data = book.model_dump(mode='json')
