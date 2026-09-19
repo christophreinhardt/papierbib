@@ -20,7 +20,11 @@ export class BarcodeScanner {
         const formats=await BarcodeDetector.getSupportedFormats?.()||[];
         const preferred=['ean_13','ean_8','code_128','code_39','qr_code'].filter(x=>formats.includes(x));
         if(preferred.length){
-          const detected=await new BarcodeDetector({formats:preferred}).detect(canvas);
+          const detector=new BarcodeDetector({formats:preferred});
+          // Native decoders can use an unscaled video frame; this matters for
+          // small EAN bars on current iPhone cameras. Canvas stays the fallback.
+          let detected=[];
+          try{detected=await detector.detect(source);}catch{detected=await detector.detect(canvas);}
           for(const item of detected){if(valid(item.rawValue))return canonical(item.rawValue);}
         }
       }catch{/* browser implementation failed; do not abandon ZXing */}
@@ -28,7 +32,7 @@ export class BarcodeScanner {
     const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
     return new Promise((resolve,reject)=>{
       this.worker ||= new Worker('/barcode-worker.js');
-      const timer=setTimeout(()=>{this.stop();},3000);
+      const timer=setTimeout(()=>{this.stop();},4000);
       this.pending=value=>{clearTimeout(timer);resolve(value);};
       this.worker.onerror=()=>{clearTimeout(timer);this.worker?.terminate();this.worker=null;this.pending=null;reject(new Error('Lokaler Barcode-Scanner nicht verfügbar. Foto aufnehmen oder ISBN eingeben.'));};
       this.worker.onmessage=({data})=>{

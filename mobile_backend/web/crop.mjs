@@ -38,8 +38,10 @@ export class CropEditor {
     ctx.drawImage(this.image,-this.image.naturalWidth*scale/2,-this.image.naturalHeight*scale/2,this.image.naturalWidth*scale,this.image.naturalHeight*scale);
     this.canvas.width=this.base.width; this.canvas.height=this.base.height; this.draw();
   }
-  rotate(delta) { this.rotation=normalRotation(this.rotation+delta); this.box=fullBox(); this.rebuild(); }
-  setRotation(value) { this.rotation=normalRotation(value); this.box=fullBox(); this.rebuild(); }
+  // The crop is expressed relative to the rendered, rotated image. Keeping its
+  // normalized coordinates makes small free-rotation corrections non-destructive.
+  rotate(delta) { this.rotation=normalRotation(this.rotation+delta); this.rebuild(); }
+  setRotation(value) { this.rotation=normalRotation(value); this.rebuild(); }
   reset() { this.rotation=0; this.box=fullBox(); this.rebuild(); }
   setBox(box) { this.box=constrain(box); this.draw(); }
   spec() { return {rotation:this.rotation,...this.box}; }

@@ -59,6 +59,7 @@ async function camera(){
 async function scanLive(epoch){
   if(epoch!==state.scanEpoch||!state.stream||$('kind').value!=='isbn')return;
   try{
+    $('resolution').textContent='Barcode-Suche läuft lokal in der Live-Kamera …';
     const isbn=state.busy?null:await liveScanner.decode($('video'));
     if(epoch!==state.scanEpoch)return;
     if(isbn){
@@ -66,8 +67,11 @@ async function scanLive(epoch){
       try{await recognition.accept(isbn,true);}finally{state.busy=false;recognition.busy=false;$('reviewPanel').inert=false;}
       return;
     }
-  }catch(error){message(error.message,true);return;}
-  setTimeout(()=>scanLive(epoch),500);
+  }catch(error){
+    // A single bad camera frame must never disable continuous scanning.
+    message('Barcode in diesem Kamerabild nicht lesbar – Suche läuft weiter.',false);
+  }
+  setTimeout(()=>scanLive(epoch),300);
 }
 const editor=new CropEditor($('editor'),$('cropPreview'),(spec,size)=>{
   for(const [id,key] of [['cropX','x'],['cropY','y'],['cropW','width'],['cropH','height']])$(id).value=(spec[key]*100).toFixed(1);
@@ -185,7 +189,7 @@ action('projects',async()=>{
 action('camera',camera);action('shoot',shoot);action('stop',stopCamera);action('save',save);
 action('discard',()=>{if(mayReplace()){discard();message('Ungespeicherte Aufnahme verworfen.');}});
 action('refresh',async()=>{await gallery();await recognition.refresh();});
-action('kind',stopCamera,'change');
+action('kind',()=>{stopCamera();recognition.kindChanged();},'change');
 for(const id of ['file','nativeCamera'])action(id,async()=>{
   const file=$(id).files[0];$(id).value='';
   if(file && mayReplace()){stopCamera();await loadBlob(file);}

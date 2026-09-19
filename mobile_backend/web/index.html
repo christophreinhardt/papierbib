@@ -31,7 +31,10 @@
 <section class="card">
 <h2>2 · Foto aufnehmen</h2>
 <label>Aufnahmeart<select id="kind"><option value="isbn">ISBN / Barcode</option><option value="spine">Buchrücken</option><option value="titlepage">Titelblatt</option><option value="shelf">Regalfoto</option></select></label>
-<p>Bei „ISBN / Barcode“ sucht die Live-Kamera lokal nach Barcodes. Eine gültige ISBN wird automatisch bei lobid gesucht; keine Live-Bilder werden übertragen. Titel-/Autor-KI und Regaltrennung folgen später.</p>
+<p>Bei „ISBN / Barcode“ startet sofort eine fortlaufende lokale Barcode-Suche. Eine gültige ISBN wird automatisch bei lobid gesucht; keine Live-Bilder werden übertragen.</p>
+<div id="visionMenu" class="match" hidden>
+<label>KI-Anbieter für diesen Zuschnitt<select id="visionProvider" disabled><option>Wird nach Anmeldung geprüft …</option></select></label>
+</div>
 <video id="video" autoplay muted playsinline hidden></video>
 <div class="row"><button id="camera">Kamera starten</button><button id="shoot" disabled>Foto aufnehmen</button><button id="stop" disabled>Kamera stoppen</button></div>
 <div class="row"><label class="filebutton">iPhone-Kamera / Foto<input id="nativeCamera" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></label><label class="filebutton">Foto auswählen<input id="file" type="file" accept="image/jpeg,image/png,image/webp"></label></div>
@@ -65,7 +68,6 @@
 <div id="visionPanel" class="match">
 <h3>KI für Buchrücken oder Titelblatt</h3>
 <p id="visionInfo">KI-Provider werden nach Anmeldung geprüft. Nur der aktuell zugeschnittene Bildbereich wird nach ausdrücklicher Bestätigung übertragen.</p>
-<label>KI-Provider<select id="visionProvider" disabled><option>Wird geprüft …</option></select></label>
 <div class="row"><button id="visionAnalyze" disabled>Kostenpflichtig auswerten</button></div>
 </div>
 <div id="isbnCandidates" class="row" aria-label="Erkannte ISBN-Nummern"></div>
@@ -91,7 +93,7 @@
 <p>Safari → Teilen → Zum Home-Bildschirm. Für die Kamera ist HTTPS erforderlich. Die separate iPhone-Kamera kann eine höhere Fotoauflösung liefern als die Live-Vorschau.</p>
 <p>Bei jedem Speichern werden Original und Zuschnitt zusammen gesichert. „Bearbeiten“ öffnet wieder das Original. Frühere Zuschnitte bleiben abrufbar. Eine Rückdrehung lässt sich jederzeit aus dem Original erzeugen.</p>
 <p>Die Offline-Oberfläche speichert keine Fotos oder Anmeldedaten im Browsercache. Nach Schließen oder Neuladen gehen nicht gespeicherte Aufnahmen verloren. Serverdaten stehen offline nicht zur Verfügung.</p>
-<p>Barcodes werden lokal mit ZXing gelesen. OCR verarbeitet nur den ausdrücklich bestätigten Ausschnitt im Homeserver-Arbeitsspeicher. Nur ISBNs werden an lobid gesendet; keine Bilder an KI-Anbieter oder Kataloge. Ohne Treffer kann die ISBN als Entwurf gespeichert werden.</p>
+<p>Barcodes werden fortlaufend lokal mit BarcodeDetector oder ZXing gelesen. OCR verarbeitet nur den ausdrücklich bestätigten Ausschnitt im Homeserver-Arbeitsspeicher. Nur ISBNs werden an lobid gesendet. Buchrücken- und Titelblatt-Zuschnitte gehen erst nach ausdrücklicher Bestätigung an den im Menü gewählten KI-Anbieter. Ohne Treffer kann die ISBN als Entwurf gespeichert werden.</p>
 </details>
 </main>
 <script type="module" src="/app.mjs"></script>

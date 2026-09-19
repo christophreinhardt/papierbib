@@ -47,7 +47,16 @@ export class Recognition {
       select.value=status.default_provider||status.configured[0]||'';
       select.disabled=!status.configured.length;$('visionAnalyze').disabled=!status.configured.length;
       info.textContent=status.configured.length?'Für Buchrücken und Titelblatt verfügbar. API-Schlüssel bleiben ausschließlich im Homeserver.':'Kein KI-Provider konfiguriert. OPENAI_API_KEY oder GEMINI_API_KEY nur in Portainer setzen.';
+      this.kindChanged();
     }catch(error){select.disabled=true;$('visionAnalyze').disabled=true;info.textContent='KI-Provider konnte nicht geprüft werden.';}
+  }
+  kindChanged(){
+    const compatible=['spine','titlepage'].includes(this.kind());
+    $('visionMenu').hidden=!compatible;
+    $('visionAnalyze').disabled=!compatible || !$('visionProvider').value;
+    if(compatible)$('visionInfo').textContent=$('visionProvider').value
+      ? 'KI-Anbieter auswählen, Foto zuschneiden und anschließend kostenpflichtig auswerten.'
+      : 'Kein KI-Provider konfiguriert. OPENAI_API_KEY oder GEMINI_API_KEY nur in Portainer setzen.';
   }
   async analyzeVision(){
     const kind=this.kind();

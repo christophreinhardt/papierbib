@@ -81,6 +81,16 @@ def main():
                     for id,value in [('cropW','70'),('cropH','60'),('cropX','10'),('cropY','10')]:
                         page.locator('#'+id).fill(value)
                         page.locator('#'+id).dispatch_event('change')
+                    # Free rotation must keep the user-selected crop instead of
+                    # silently reverting to the full image.
+                    page.locator('#rotation').fill('103.5')
+                    page.locator('#rotation').dispatch_event('input')
+                    assert page.locator('#cropX').input_value()=='10.0'
+                    assert page.locator('#cropY').input_value()=='10.0'
+                    assert page.locator('#cropW').input_value()=='70.0'
+                    assert page.locator('#cropH').input_value()=='60.0'
+                    page.locator('#rotation').fill('90')
+                    page.locator('#rotation').dispatch_event('input')
                     page.locator('#zoom').fill('1.5')
                     page.locator('#zoom').dispatch_event('input')
                     page.locator('#save').click()

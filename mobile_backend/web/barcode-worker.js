@@ -7,7 +7,13 @@ self.onmessage=({data:{pixels,width,height}})=>{
       [ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.QR_CODE]],
       [ZXing.DecodeHintType.TRY_HARDER,true]
     ]);
-    const variants=[{left:0,top:0,width,height},{left:0,top:Math.floor(height*.15),width,height:Math.ceil(height*.7)}];
+    const variants=[
+      {left:0,top:0,width,height},
+      // Typical book EAN: wide, low in the frame. The other crops retain
+      // barcodes held vertically or offset from the centre.
+      {left:0,top:Math.floor(height*.15),width,height:Math.ceil(height*.7)},
+      {left:Math.floor(width*.15),top:0,width:Math.ceil(width*.7),height}
+    ];
     for(const variant of variants){
       const values=new Int32Array(variant.width*variant.height);
       for(let y=0;y<variant.height;y++)for(let x=0;x<variant.width;x++){
