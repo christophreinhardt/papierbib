@@ -47,9 +47,13 @@
         <label>Erscheinungsjahr<input id="year" inputmode="numeric" /></label>
         <label>Rohtext / Notiz<textarea id="rawText" rows="3"></textarea></label>
       </div>
-      <div class="action-row">
+      <div class="form-grid backend-config">
+        <label>KI-Backend-URL<input id="backendUrl" type="url" placeholder="https://dein-backend.example" autocomplete="url" /></label>
+        <label>Backend-Token<input id="backendToken" type="password" placeholder="Bearer-Token" autocomplete="off" /></label>
+      </div>      <div class="action-row">
         <button id="lookup" class="primary">Bei lobid suchen</button>
         <button id="ocr">OCR versuchen</button>
+        <button id="aiAnalyze">KI-Foto auswerten</button>
         <button id="save">In Tabelle speichern</button>
       </div>
       <p id="resultStatus" class="status" role="status"></p>

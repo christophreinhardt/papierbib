@@ -123,6 +123,31 @@ async function ocr() {
     else status('OCR abgeschlossen. Titel und Autor bitte prüfen und danach lobid suchen.');
   } catch (error) { status(`OCR fehlgeschlagen: ${error.message}`, true); } finally { $('ocr').disabled = false; }
 }
+async function analyzeWithBackend() {
+  if (!state.image) return status('Zuerst ein Foto aufnehmen.', true);
+  const base = $('backendUrl').value.trim().replace(/\/$/, '');
+  const token = $('backendToken').value.trim();
+  if (!base || !token) return status('Backend-URL und Zugriffstoken eintragen.', true);
+  localStorage.setItem('papierbib-backend-url', base);
+  sessionStorage.setItem('papierbib-backend-token', token);
+  const endpoint = state.mode === 'spine' ? 'book-spine' : 'title-page';
+  const response = await fetch(`${base}/api/vision/${endpoint}`, { method:'POST', headers:{ Authorization:`Bearer ${token}` }, body:(() => { const form = new FormData(); form.append('image', dataUrlBlob(state.image), 'capture.jpg'); return form; })() });
+  if (!response.ok) throw new Error((await response.json().catch(() => ({}))).detail || `Backend HTTP ${response.status}`);
+  const result = await response.json();
+  if (result.title) $('title').value = result.title;
+  if (result.author) $('author').value = result.author;
+  if (result.publisher) $('publisher').value = result.publisher;
+  if (result.year) $('year').value = result.year;
+  if (result.isbn13 || result.isbn10) $('isbn').value = result.isbn13 || result.isbn10;
+  if (result.rawText) $('rawText').value = result.rawText;
+  status(`KI-Auswertung abgeschlossen (${result.source || 'Backend'}). Bitte prüfen.`);
+}
+function dataUrlBlob(value) {
+  const [meta, encoded] = value.split(',');
+  const binary = atob(encoded); const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: meta.match(/data:([^;]+)/)?.[1] || 'image/jpeg' });
+}
 async function save() {
   const normalized = validIsbn($('isbn').value); if ($('isbn').value.trim() && !normalized) return status('Die eingegebene ISBN ist ungültig.', true);
   const book = { id:crypto.randomUUID(), captureType:state.mode, isbn:normalized || null, title:$('title').value.trim() || null, author:$('author').value.trim() || null, publisher:$('publisher').value.trim() || null, year:$('year').value.trim() || null, rawText:$('rawText').value.trim() || null, image:state.image || null, source:'lobid', status:normalized || $('title').value.trim() ? 'needs_manual_review' : 'needs_scan', createdAt:new Date().toISOString() };
@@ -137,4 +162,5 @@ async function exportCsv() { const rows=await allBooks(); const fields=['isbn','
 function setMode(mode) { state.mode=mode; document.querySelectorAll('.mode').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode)); if (state.stream) cameraStatus(`Kamera aktiv · Modus: ${modeLabel()}`); }
 
 document.querySelectorAll('.mode').forEach(button=>button.onclick=()=>setMode(button.dataset.mode)); $('startCamera').onclick=()=>startCamera().catch(error=>cameraStatus(error.message,true)); $('stopCamera').onclick=stopCamera; $('capture').onclick=()=>capture().catch(error=>cameraStatus(error.message,true)); $('lookup').onclick=lookup; $('ocr').onclick=ocr; $('save').onclick=()=>save().catch(error=>status(`Speichern fehlgeschlagen: ${error.message}`,true)); $('exportJson').onclick=exportJson; $('exportCsv').onclick=exportCsv; $('clearAll').onclick=async()=>{ if(confirm('Alle lokal gespeicherten Datensätze löschen?')) { const db=state.db; const tx=db.transaction('books','readwrite'); tx.objectStore('books').clear(); tx.oncomplete=render; } }; $('helpButton').onclick=()=>$('helpDialog').showModal(); $('closeHelp').onclick=()=>$('helpDialog').close(); window.addEventListener('pagehide',stopCamera);
+backendUrl.value = localStorage.getItem('papierbib-backend-url') || ''; backendToken.value = sessionStorage.getItem('papierbib-backend-token') || '';
 state.db = await openDb(); await render();
