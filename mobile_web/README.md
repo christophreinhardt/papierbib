@@ -19,11 +19,12 @@ Server und keinen API-Schlüssel.
 ## GitHub Pages
 
 1. Den Inhalt dieses Ordners in ein GitHub-Repository kopieren, zum Beispiel in
-   den Ordner `mobile/`.
+   den Ordner `mobile/`. Im Papierbibliothek-Repository ist der Workflow bereits
+   zusätzlich unter `.github/workflows/pages.yml` abgelegt.
 2. In GitHub unter **Settings → Pages** als Quelle **GitHub Actions** wählen.
-3. Die unten vorgeschlagene Workflow-Datei nach `.github/workflows/pages.yml`
-   im Repository kopieren oder Pages alternativ direkt aus dem Repository-Root
-   veröffentlichen.
+3. Bei einem eigenen App-Repository die Workflow-Datei nach
+   `.github/workflows/pages.yml` kopieren oder Pages alternativ direkt aus dem
+   Repository-Root veröffentlichen.
 4. Die erzeugte `https://<konto>.github.io/<repository>/`-Adresse auf dem iPhone
    in Safari öffnen und zum Home-Bildschirm hinzufügen.
 
