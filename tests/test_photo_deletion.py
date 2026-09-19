@@ -7,6 +7,7 @@ from unittest.mock import patch
 from PIL import Image
 from qt.core import QAbstractItemView, QMessageBox, Qt
 
+from papierbibliothek import PapierbibliothekPlugin
 from papierbibliothek.models import Book, Project
 from papierbibliothek.image_processing.photos import import_batch
 from papierbibliothek.persistence.photos import remove_photos
@@ -138,7 +139,8 @@ class PhotoDeletionTests(unittest.TestCase):
         window = MainDialog()
         self.addCleanup(window.close)
         self.assertTrue(window.load_project(self.store.path))
-        self.assertIn('Version 0.6.10', window.windowTitle())
+        version = '.'.join(str(part) for part in PapierbibliothekPlugin.version)
+        self.assertIn('Version ' + version, window.windowTitle())
         window.photos.selectAll()
         with patch('papierbibliothek.ui.main.QInputDialog.getText',
                    return_value=('Arbeitszimmer · Regal B · Fach 4', True)):

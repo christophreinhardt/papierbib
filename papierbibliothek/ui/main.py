@@ -795,10 +795,18 @@ class MainDialog(QDialog):
         self.run_task(lambda cancel,progress:import_books(self.store,snapshot,plans,db,cancel,progress,covers),
                       'Import in Calibre …')
 
-    def refresh_calibre(self,ids):
+    def refresh_calibre(self,ids,added=0):
         if not ids or self.calibre_gui is None:return
-        try:self.calibre_gui.library_view.model().refresh_ids(set(ids))
-        except Exception:pass
+        model=self.calibre_gui.library_view.model()
+        try:
+            # refresh_ids() only repaints rows already known to the model.
+            # Calibre 9.x requires books_added() when new_api created rows.
+            if added:model.books_added(added)
+            model.refresh_ids(set(ids))
+        except Exception:
+            # Slower, public fallback for changed Calibre model behaviour.
+            try:model.refresh()
+            except Exception:pass
         try:self.calibre_gui.tags_view.recount()
         except Exception:pass
 
@@ -1077,7 +1085,9 @@ class MainDialog(QDialog):
                 self.status.setText(f"{len(result['import_preview'])} importierbare Bücher geprüft.")
                 self.launch_import_preview(result['import_preview'],result['calibre_db'])
             elif 'calibre_import' in result:
-                self.project=result['project'];self.refresh();self.refresh_calibre(result['changed_ids'])
+                self.project=result['project'];self.refresh()
+                added=sum(item.get('action')=='create' and not item.get('error') for item in result['results'])
+                self.refresh_calibre(result['changed_ids'],added)
                 failures=[x for x in result['results'] if x.get('error')]
                 warnings=[x for x in result['results'] if x.get('warning') or x.get('warnings')]
                 text=f"{len(result['changed_ids'])} Calibre-Datensätze verarbeitet"

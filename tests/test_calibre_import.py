@@ -16,6 +16,7 @@ from papierbibliothek.calibre_plugin.importer import (
     metadata_for, prepare_import,
 )
 from papierbibliothek.ui.calibre_import import ImportDialog
+from papierbibliothek.ui.main import MainDialog
 
 
 class ImportTests(unittest.TestCase):
@@ -130,6 +131,19 @@ class ImportTests(unittest.TestCase):
                 self.assertIn('Papierbuch',mi.tags)
             finally:
                 library.close()
+
+    def test_gui_refresh_announces_new_rows_before_refreshing_ids(self):
+        model=Mock();gui=Mock();gui.library_view.model.return_value=model
+        MainDialog.refresh_calibre(Mock(calibre_gui=gui),[42,43],2)
+        model.books_added.assert_called_once_with(2)
+        model.refresh_ids.assert_called_once_with({42,43})
+        gui.tags_view.recount.assert_called_once_with()
+
+    def test_gui_refresh_falls_back_to_full_model_refresh(self):
+        model=Mock();model.books_added.side_effect=RuntimeError('changed API')
+        gui=Mock();gui.library_view.model.return_value=model
+        MainDialog.refresh_calibre(Mock(calibre_gui=gui),[42],1)
+        model.refresh.assert_called_once_with()
 
 
 if __name__=='__main__':unittest.main()

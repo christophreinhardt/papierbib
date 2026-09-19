@@ -1,4 +1,5 @@
 """Build a clean installable ZIP, independent of Calibre and third-party packages."""
+import ast
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 
@@ -6,7 +7,16 @@ from zipfile import ZipFile, ZIP_DEFLATED
 def build():
     root = Path(__file__).resolve().parent
     source = root / 'papierbibliothek'
-    target = root / 'dist' / 'Papierbibliothek-0.6.11.zip'
+    tree = ast.parse((source / '__init__.py').read_text(encoding='utf-8'))
+    version_tuple = next(
+        ast.literal_eval(node.value)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == 'version'
+                for target in node.targets)
+    )
+    version = '.'.join(str(part) for part in version_tuple)
+    target = root / 'dist' / ('Papierbibliothek-' + version + '.zip')
     target.parent.mkdir(exist_ok=True)
     with ZipFile(target, 'w', ZIP_DEFLATED) as archive:
         for path in sorted(source.rglob('*')):
