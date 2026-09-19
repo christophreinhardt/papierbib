@@ -79,5 +79,12 @@ class VisionApiTests(unittest.TestCase):
         self.assertNotIn('fake-key',response.text)
         self.assertEqual(self.client.post('/api/vision/analyze?kind=shelf&consent=true',headers=self.headers,content=photograph()).status_code,422)
 
+    @patch('mobile_backend.vision.analyze',side_effect=vision.VisionError('KI-Anbieter hat die Anfrage abgelehnt oder ist nicht verfügbar (HTTP 401).'))
+    def test_provider_error_is_actionable_and_secret_free(self, analyze):
+        response=self.client.post('/api/vision/analyze?kind=spine&consent=true',headers=self.headers,content=photograph())
+        self.assertEqual(response.status_code,503)
+        self.assertIn('HTTP 401',response.text)
+        self.assertNotIn('fake-key',response.text)
+
 
 if __name__=='__main__':unittest.main()

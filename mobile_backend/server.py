@@ -260,8 +260,13 @@ def create_app(settings=None):
                 async with vision_gate:
                     result = await run_in_threadpool(vision.analyze, settings, provider, data, kind)
             return dict(result=result, stored=False)
-        except (vision.VisionError, TimeoutError):
-            raise HTTPException(503, 'KI-Auswertung fehlgeschlagen oder hat das Zeitlimit erreicht. Ausschnitt prüfen oder später erneut versuchen.')
+        except vision.VisionError as exc:
+            # VisionError is deliberately created from fixed, secret-free text.
+            # Returning it lets the owner distinguish key, quota, model and
+            # provider failures without exposing image data or credentials.
+            raise HTTPException(503, str(exc)) from exc
+        except TimeoutError:
+            raise HTTPException(503, 'KI-Auswertung hat das Zeitlimit erreicht. Ausschnitt verkleinern oder später erneut versuchen.')
 
     @app.get('/api/projects/{project_id}/books')
     def books(project_id: str):
