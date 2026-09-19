@@ -1,0 +1,40 @@
+name: Test self-hosted mobile app
+on:
+  push:
+    branches: [main]
+    paths: ['mobile_backend/**', '.github/workflows/mobile-tests.yml']
+  pull_request:
+    paths: ['mobile_backend/**', '.github/workflows/mobile-tests.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PAPIERBIB_PASSWORD: only-for-isolated-container-test
+      PUBLIC_ORIGIN: https://papierbib.test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pip install -r mobile_backend/requirements-dev.txt
+      - run: python -m unittest discover -s mobile_backend/tests -v
+      - run: node --test mobile_backend/tests/crop.test.mjs
+      - run: python -m playwright install --with-deps chromium webkit
+      - run: python -m mobile_backend.tests.browser_smoke
+      - run: docker build -t papierbib-mobile:0.2.0 mobile_backend
+      - run: docker compose -p papierbib-phase1-test -f mobile_backend/docker-compose.yml -f mobile_backend/tests/compose.smoke.yml up -d --no-build
+      - run: python -m mobile_backend.tests.container_smoke
+      - if: always()
+        run: docker compose -p papierbib-phase1-test -f mobile_backend/docker-compose.yml -f mobile_backend/tests/compose.smoke.yml down
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-browser-screenshots
+          path: test-results/mobile/

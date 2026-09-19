@@ -1,5 +1,10 @@
 # Papierbibliothek mobil
 
+**Altbestand: GitHub-Pages-Prototyp.** Die neue selbst gehostete Anwendung
+liegt unter [mobile_backend/](../mobile_backend/README.md). Vor dem Wechsel
+hier gespeicherte Browserdaten exportieren und aufbewahren; sie werden
+nicht automatisch in die neue SQLite-Datenbank übernommen.
+
 Statische, iPhone-taugliche Webanwendung für die Erfassung von Papierbüchern.
 Sie kann direkt über GitHub Pages ausgeliefert werden und benötigt keinen
 Server und keinen API-Schlüssel.

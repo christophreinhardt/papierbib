@@ -3,3 +3,9 @@ __pycache__/
 .pytest_cache/
 dist/
 test-results/
+.env
+.env.*
+!.env.example
+.venv/
+mobile_backend/data/
+node_modules/

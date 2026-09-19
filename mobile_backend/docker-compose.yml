@@ -1,20 +1,27 @@
 services:
   papierbib-api:
     build: .
+    image: papierbib-mobile:0.2.0
     container_name: papierbib-api
     restart: unless-stopped
     environment:
-      PAPIERBIB_API_TOKEN: ${PAPIERBIB_API_TOKEN:?set-in-Portainer}
-      AI_PROVIDER: ${AI_PROVIDER:-openai}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_VISION_MODEL: ${OPENAI_VISION_MODEL:-gpt-4o-mini}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_VISION_MODEL: ${GEMINI_VISION_MODEL:-gemini-2.0-flash}
-      CORS_ORIGINS: ${CORS_ORIGINS:?set-in-Portainer}
-      LOBID_TIMEOUT_SECONDS: ${LOBID_TIMEOUT_SECONDS:-12}
-      MAX_IMAGE_BYTES: ${MAX_IMAGE_BYTES:-12000000}
+      PAPIERBIB_PASSWORD: ${PAPIERBIB_PASSWORD:?Passwort mit mindestens 16 Zeichen setzen}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?HTTPS-Basisadresse der neuen App setzen}
+      DATABASE_PATH: /data/papierbib.sqlite3
+      MAX_IMAGE_BYTES: ${MAX_IMAGE_BYTES:-20971520}
     ports:
-      - "8888:8080"
+      - "${HOST_BIND:-127.0.0.1}:8888:8080"
+    volumes:
+      - papierbib_data:/data
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:size=32m,noexec,nosuid
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 2g
+    pids_limit: 100
+    init: true
+volumes:
+  papierbib_data:

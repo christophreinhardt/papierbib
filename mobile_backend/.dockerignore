@@ -1,0 +1,11 @@
+*
+!requirements.txt
+!__init__.py
+!config.py
+!storage.py
+!images.py
+!server.py
+!web/
+!web/**
+!tools/
+!tools/make_icons.py
