@@ -58,7 +58,12 @@ async function capture() {
   const canvas = $('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video,0,0);
   state.image = canvas.toDataURL('image/jpeg', .92); $('still').src = state.image; $('still').hidden = false;
   cameraStatus(`Aufnahme gespeichert · ${canvas.width} × ${canvas.height} Pixel · ${modeLabel()}`);
-  if (state.mode === 'isbn') await scanBarcode(canvas);
+  if (state.mode === 'isbn') {
+    await scanBarcode(canvas);
+  } else {
+    // Analyze spine and title-page photos locally with OCR immediately.
+    await ocr();
+  }
 }
 async function scanBarcode(canvas) {
   try {
@@ -66,8 +71,7 @@ async function scanBarcode(canvas) {
     if (state.detector) {
       values = (await state.detector.detect(canvas)).map(item => item.rawValue);
     } else {
-      // Safari on iOS does not expose BarcodeDetector in many versions. ZXing
-      // is loaded only for this explicit scan and never receives camera frames.
+      // Safari on iOS does not expose BarcodeDetector in many versions.
       const { BrowserMultiFormatReader } = await import(
         'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/+esm');
       const reader = new BrowserMultiFormatReader();
@@ -76,10 +80,15 @@ async function scanBarcode(canvas) {
     }
     const value = values.map(validIsbn).find(Boolean);
     if (value) { $('isbn').value = value; await lookup(); }
-    else cameraStatus('Kein gültiger ISBN-Barcode erkannt. ISBN bitte eingeben oder OCR versuchen.');
-  } catch (_) { cameraStatus('Barcode konnte nicht gelesen werden. ISBN bitte manuell eingeben.', true); }
+    else {
+      cameraStatus('Kein Barcode erkannt - OCR wird versucht ...');
+      await ocr();
+    }
+  } catch (_) {
+    cameraStatus('Barcode konnte nicht gelesen werden - OCR wird versucht ...');
+    await ocr();
+  }
 }
-
 function parseLobid(item) {
   const title = item.title || ''; const author = (item.contribution || []).map(x => x.agent?.label || x.agent?.name || '').filter(Boolean).join(' & ');
   const pub = item.publication?.[0] || {}; const isbn = (item.isbn || []).map(x => typeof x === 'string' ? x : x.value).find(Boolean) || '';
