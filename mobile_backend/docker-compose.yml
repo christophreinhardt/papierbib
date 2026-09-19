@@ -1,0 +1,11 @@
+services:
+  papierbib-api:
+    build: .
+    container_name: papierbib-api
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8080:8080"
+    read_only: true
+    tmpfs:
+      - /tmp
